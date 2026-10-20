@@ -5,9 +5,13 @@ Writes Standard MIDI Files (format 0) into the given directory:
 
   control_ensemble.mid       Plain multi-part playback. Expected to render
                              identically across library versions.
-  partial_overflow.mid       Dense chords that run out of the 32 partials, so
-                             the partial allocator has to steal voices. Changed
-                             for old-gen (MT-32 v1.x ROM) units in 2.8.0 (#109).
+  partial_stealing.mid       Runs out of partials while another part has a
+                             releasing note. Old-gen units (MT-32 v1.x ROMs)
+                             steal from the part's own held notes; new-gen units
+                             cut the other part's releasing note. Munt 2.8.0
+                             emulates the old-gen behaviour (#109). Uses a
+                             one-partial sine timbre uploaded by SysEx, so it
+                             behaves the same with any ROM set.
   timbre_sysex_held.mid      Changes a part's timbre via SysEx while notes are
                              held. Since 2.7.3 the held notes decay at once,
                              like the real hardware (#132).
@@ -34,11 +38,35 @@ def var_len(value):
     return bytes(reversed(out))
 
 
-def mt32_sysex(address, data):
-    """Build a Roland DT1 SysEx message for the MT-32 (device ID 0x10)."""
+def mt32_sysex(address, data, device=0x10):
+    """Build a Roland DT1 SysEx message for the MT-32.
+
+    Device ID 0x10 uses absolute addresses. Device IDs 0x00-0x0F address the
+    part on that MIDI channel, so 0x000000 is its Patch Temp area and 0x020000
+    its Timbre Temp area.
+    """
     body = list(address) + list(data)
     checksum = (128 - sum(body) % 128) % 128
-    return bytes([0xF0, 0x41, 0x10, 0x16, 0x12] + body + [checksum, 0xF7])
+    return bytes([0xF0, 0x41, device, 0x16, 0x12] + body + [checksum, 0xF7])
+
+
+# One-partial sine wave timbre, as used by Munt's own unit tests
+# (mt32emu/src/test/TestUtils.cpp, sendSineWaveSysex)
+SINE_PATCH = (0x00, 0x00, 0x18, 0x19, 0x0C, 0x00, 0x00, 0x00, 0x64, 0x00)
+SINE_TIMBRE = (
+    b"Test-sine."
+    + bytes([0x00, 0x00, 0x01, 0x00])
+    + bytes([0x18, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x07])
+    + bytes([0x00] * 15 + [0x32])
+    + bytes([0x00, 0x0B, 0x00, 0x07] + [0x00] * 12)
+    + bytes([0x00, 0x64, 0x32, 0x00, 0x0C, 0x00, 0x0C, 0x00])
+    + bytes([0x00] * 6 + [0x64] * 4)
+)
+
+
+def upload_sine_timbre(track, tick, channel):
+    track.sysex(tick, mt32_sysex((0x00, 0x00, 0x00), SINE_PATCH, device=channel))
+    track.sysex(tick, mt32_sysex((0x02, 0x00, 0x00), SINE_TIMBRE, device=channel))
 
 
 class Track:
@@ -104,20 +132,24 @@ def control_ensemble():
     return t
 
 
-def partial_overflow():
+def partial_stealing():
     t = Track()
-    # Multi-partial timbres on every part so 32 partials run out quickly
-    for channel in MT32_PART_CHANNELS:
-        t.program(0, channel, 48 + channel)  # string/ensemble timbres
-    chords = [[48, 52, 55, 60], [50, 53, 57, 62], [52, 55, 59, 64], [53, 57, 60, 65]]
-    for bar in range(8):
-        start = beats(1 + bar * 2)
-        for channel in MT32_PART_CHANNELS:
-            for key in chords[(bar + channel) % 4]:
-                # Long, overlapping notes keep partials busy
-                t.note(start + channel * 10, beats(3.5), channel, key + channel)
-        # Drum hits compete for partials too
-        t.note(start, beats(0.25), RHYTHM_CHANNEL, 49, 120)
+    part1, part2 = 1, 2  # MIDI channels 2 and 3
+    # Partial reserve: part 1 = 31, parts 2-8 = 0, rhythm = 1
+    t.sysex(0, mt32_sysex((0x10, 0x00, 0x04), (31, 0, 0, 0, 0, 0, 0, 0, 1)))
+    upload_sine_timbre(t, 0, part1)
+    upload_sine_timbre(t, 0, part2)
+
+    for rep in range(3):
+        start = beats(2 + rep * 8)
+        # Part 1 holds 31 one-partial notes: exactly its reserve
+        for i in range(31):
+            t.note(start + i * 8, beats(5), part1, 36 + i, 40)
+        # Part 2 plays one note and lets go: a releasing note over its reserve.
+        # Part 1 asks for one more partial on the same tick, while all 32 are
+        # still busy (this timbre's release is very short).
+        t.note(start + beats(1), beats(1), part2, 96, 110)
+        t.note(start + beats(2), beats(2), part1, 84, 110)
     return t
 
 
@@ -142,7 +174,7 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
     for name, build in (
         ("control_ensemble.mid", control_ensemble),
-        ("partial_overflow.mid", partial_overflow),
+        ("partial_stealing.mid", partial_stealing),
         ("timbre_sysex_held.mid", timbre_sysex_held),
     ):
         write_smf(out_dir / name, build())

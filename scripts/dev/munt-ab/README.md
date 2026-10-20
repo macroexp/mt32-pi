@@ -18,7 +18,15 @@ Most music should render **identically**. Differences are expected only where th
 | Invalid short MIDI messages ignored | 2.8.0, 2.8.3 (#134, #147) | Only with malformed MIDI input |
 | Performance improvements | 2.8.0 (#131) | No audible change; lower CPU use |
 
-A difference anywhere else, such as in `control_ensemble.mid`, would point to a problem.
+Expected results for the generated test set:
+
+| File | MT-32 v1.x ROM (old-gen) | MT-32 v2.x, CM-32L (new-gen) |
+| --- | --- | --- |
+| `control_ensemble` | identical | identical |
+| `partial_stealing` | differs from 2.0 s to 3.5 s, and again at 6.0 s and 10.0 s | identical |
+| `timbre_sysex_held` | differs from 1.0 s | differs from 1.0 s |
+
+`partial_stealing` uses a one-partial sine timbre uploaded by SysEx, so its partial counts don't depend on the ROM's own sounds. A difference anywhere else, such as in `control_ensemble`, would point to a problem.
 
 ## 1. Offline renders
 
@@ -31,14 +39,14 @@ scripts/dev/munt-ab/run.sh --roms /path/to/roms --machine mt32
 The script clones Munt into `./munt-ab-work`, builds the `mt32emu-smf2wav` renderer from one source tree against each library version, generates a small test set (`make_test_midi.py`), renders it, and prints a comparison. The output looks like this (numbers illustrative):
 
 ```
-control_ensemble.mid   identical
-partial_overflow.mid   DIFFERS from 1.250 s; max sample diff 2210; difference level -48.3 dBFS
-timbre_sysex_held.mid  DIFFERS from 2.000 s; ...
+control_ensemble.wav   identical
+partial_stealing.wav   DIFFERS from 2.000 s; max sample diff 8269; difference level -41.3 dBFS
+timbre_sysex_held.wav  DIFFERS from 1.000 s; ...
 ```
 
 Useful options:
 
-- `--machine mt32_1_07` (or whichever v1.x set you own): old-gen ROMs exercise the partial allocator change. Run again with `--machine cm32l` for the CM-32L.
+- `--machine mt32_1_07` (or whichever v1.x set you own): only old-gen ROMs show the partial allocator change. `--machine mt32` picks your *highest* MT-32 ROM version, which is new-gen if you have a v2.x set. Run again with `--machine cm32l` for the CM-32L.
 - `--midi DIR`: render your own MIDI files, e.g. favourite game soundtracks, instead of the generated set.
 - `--old` / `--new`: compare other Munt git refs.
 
