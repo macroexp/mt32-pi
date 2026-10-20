@@ -40,7 +40,7 @@ The script clones Munt into `./munt-ab-work`, builds the `mt32emu-smf2wav` rende
 
 ```
 control_ensemble.wav   identical
-partial_stealing.wav   DIFFERS from 2.000 s; max sample diff 8269; difference level -41.3 dBFS
+partial_stealing.wav   DIFFERS from 2.002 s; max sample diff 32483; difference level -13.4 dBFS
 timbre_sysex_held.wav  DIFFERS from 1.000 s; ...
 ```
 

@@ -96,6 +96,7 @@ build_renderer new "$NEW_REF"
 # 3. MIDI files
 if [ -z "$MIDI" ]; then
 	MIDI="$WORK/midi"
+	rm -rf "$MIDI" # drop test files from older versions of this script
 	python3 "$HERE/make_test_midi.py" "$MIDI" >/dev/null
 fi
 
@@ -103,6 +104,7 @@ fi
 render() {
 	local name="$1" out="$WORK/render-$MACHINE-$1"
 	local tool="$WORK/build-$name/mt32emu_smf2wav/mt32emu-smf2wav"
+	rm -rf "$out" # no stale renders from earlier runs
 	mkdir -p "$out"
 	echo "== Rendering with $name library ($("$tool" --help 2>&1 | grep -o 'Library Version [0-9.]*'))"
 	shopt -s nullglob

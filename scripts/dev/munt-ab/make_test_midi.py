@@ -50,8 +50,10 @@ def mt32_sysex(address, data, device=0x10):
     return bytes([0xF0, 0x41, device, 0x16, 0x12] + body + [checksum, 0xF7])
 
 
-# One-partial sine wave timbre, as used by Munt's own unit tests
-# (mt32emu/src/test/TestUtils.cpp, sendSineWaveSysex)
+# One-partial sine wave timbre, based on the one in Munt's own unit tests
+# (mt32emu/src/test/TestUtils.cpp, sendSineWaveSysex), plus a TVA release time
+# so released notes keep sounding briefly, as most real timbres do.
+SINE_RELEASE_TIME = 30
 SINE_PATCH = (0x00, 0x00, 0x18, 0x19, 0x0C, 0x00, 0x00, 0x00, 0x64, 0x00)
 SINE_TIMBRE = (
     b"Test-sine."
@@ -60,7 +62,7 @@ SINE_TIMBRE = (
     + bytes([0x00] * 15 + [0x32])
     + bytes([0x00, 0x0B, 0x00, 0x07] + [0x00] * 12)
     + bytes([0x00, 0x64, 0x32, 0x00, 0x0C, 0x00, 0x0C, 0x00])
-    + bytes([0x00] * 6 + [0x64] * 4)
+    + bytes([0x00] * 5 + [SINE_RELEASE_TIME] + [0x64] * 4)  # TVA env times, levels
 )
 
 
