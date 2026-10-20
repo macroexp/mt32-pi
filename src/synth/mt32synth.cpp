@@ -122,7 +122,8 @@ bool CMT32Synth::Initialize()
 
 void CMT32Synth::HandleMIDIShortMessage(u32 nMessage)
 {
-	m_pSynth->playMsg(nMessage);
+	if (!m_pSynth->playMsg(nMessage))
+		LOGWARN("mt32emu rejected MIDI message %06X", static_cast<unsigned int>(nMessage));
 
 	// Update MIDI monitor
 	CSynthBase::HandleMIDIShortMessage(nMessage);
@@ -130,7 +131,8 @@ void CMT32Synth::HandleMIDIShortMessage(u32 nMessage)
 
 void CMT32Synth::HandleMIDISysExMessage(const u8* pData, size_t nSize)
 {
-	m_pSynth->playSysex(pData, nSize);
+	if (!m_pSynth->playSysex(pData, nSize))
+		LOGWARN("mt32emu rejected SysEx message (%u bytes)", static_cast<unsigned int>(nSize));
 }
 
 void CMT32Synth::AllSoundOff()
