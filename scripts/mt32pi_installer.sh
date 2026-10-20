@@ -38,7 +38,7 @@
 set -o pipefail
 
 SCRIPT_VERSION=0.2.0
-GITHUB_API_URL="https://api.github.com/repos/dwhinham/mt32-pi/releases/latest"
+GITHUB_API_URL="https://api.github.com/repos/macroexp/mt32-pi/releases/latest"
 MISTER_WPA_SUPPLICANT_CFG_PATH="/media/fat/linux/wpa_supplicant.conf"
 
 DIALOG=(dialog --no-collapse --colors --backtitle "mt32-pi Installer v$SCRIPT_VERSION")
@@ -621,8 +621,8 @@ MT-32 mode will be unavailable until you add MT-32 ROM files to the \Zb\Z4roms\Z
 
              Thankyou for using mt32-pi! \Z5<3\Zn
 
-           \Z1\Zuhttps://github.com/dwhinham/mt32-pi\Zn
-               \Z1\Zuhttps://ko-fi.com/d0pefish\Zn
+           \Z1\Zuhttps://github.com/macroexp/mt32-pi\Zn
+      Based on mt32-pi by Dale Whinham (dwhinham)
 
          Please support open source developers!
 EOF

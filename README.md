@@ -1,18 +1,12 @@
-## Please note
+## About this fork
 
-**It's unlikely that there will be any further releases of mt32-pi.**
+This is a community-maintained fork of [mt32-pi](https://github.com/dwhinham/mt32-pi), created and developed by Dale Whinham ([@dwhinham](https://github.com/dwhinham)) from 2020 to 2023. The original project is no longer maintained. All credit for the design and the bulk of the code belongs to him; please respect his decision to step away and direct questions about this fork here, not to him.
 
-I have endured a sustained campaign of abuse from members of the VOGONS forum, been labelled a "clout-chaser", had threats sent to my personal email address, code been used in other projects without proper accreditation, my 3D print designs stolen and sold by faceless eBay/Etsy sellers, personal attacks made towards me when people don't get their feature request... the list goes on and on.
-
-*There is only so much I can take.*
-
-My mental health has been in decline as a direct result of this behavior; the joy of working on this project has pretty much gone. There is nothing to be gained from putting time and hard work into it any more. There is no gratitude, no encouragement - just entitled behavior and grift.
-
-To those who supported this project in the past, especially whilst I was a struggling student who needed all the uplift I could get, thank you sincerely.
+Current goals: update the Circle framework, FluidSynth, Munt and the build toolchain to current releases, then add Raspberry Pi 5 support. Documentation links below still point to the original project's wiki.
 
 ---
 
-[![mt32-pi CI](https://github.com/dwhinham/mt32-pi/workflows/mt32-pi%20CI/badge.svg)](https://github.com/dwhinham/mt32-pi/actions?query=workflow:"mt32-pi+CI")
+[![mt32-pi CI](https://github.com/macroexp/mt32-pi/actions/workflows/ci.yml/badge.svg)](https://github.com/macroexp/mt32-pi/actions/workflows/ci.yml)
 
 <h1 align="center">
     <img width="90%" title="mt32-pi - Baremetal synthesizer system" src="images/mt32pi_logo.svg">
@@ -141,7 +135,7 @@ The [mt32-pi logo] was designed by and is © Dale Whinham. The terms of use for 
 [Munt]: https://github.com/munt/munt
 [Nat (MiSTerFPGA.co.uk)]: https://misterfpga.co.uk
 [Porkchop Express (MiSTerAddons)]: https://misteraddons.com
-[Releases]: https://github.com/dwhinham/mt32-pi/releases
+[Releases]: https://github.com/macroexp/mt32-pi/releases
 [Ricardo Saraiva (UltimateMiSTer.com)]: https://ultimatemister.com
 [Roland GS]: https://en.wikipedia.org/wiki/Roland_GS
 [Roland MT-32]: https://en.wikipedia.org/wiki/Roland_MT-32
