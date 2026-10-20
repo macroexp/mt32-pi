@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 env:
   toolchain-version: 15.2.rel1
-  python-version: 3.11
+  python-version: "3.13"
 
 jobs:
   lint:
@@ -16,20 +16,22 @@ jobs:
         with:
           python-version: ${{ env.python-version }}
 
-      - uses: psf/black@stable
+      # Pinned: --preview style changes between Black releases
+      - uses: psf/black@26.10.1
         with:
           options: --check --diff --preview
           src: scripts
+          version: "26.10.1"
 
-      - uses: isort/isort-action@master
+      - uses: isort/isort-action@v1.1.1
         with:
             sortPaths: scripts
 
-      - uses: py-actions/flake8@v2
+      - uses: py-actions/flake8@v2.3.0
         with:
           path: scripts
 
-      - uses: ludeeus/action-shellcheck@master
+      - uses: ludeeus/action-shellcheck@2.0.0
         with:
           scandir: scripts
 
@@ -40,6 +42,14 @@ jobs:
       fail-fast: false
       matrix:
         board: [pi2, pi3-64, pi4-64]
+        package: [true]
+        # 32-bit Pi 3/4 kernels aren't shipped (config.txt boots the 64-bit
+        # ones), but build them so the 32-bit targets keep compiling.
+        include:
+          - board: pi3
+            package: false
+          - board: pi4
+            package: false
     steps:
     - uses: actions/checkout@v7
 
@@ -52,7 +62,7 @@ jobs:
       run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libglib2.0-dev pkg-config
 
     - name: Setup ccache
-      uses: hendrikmuhs/ccache-action@v1.2
+      uses: hendrikmuhs/ccache-action@v1.2.24
       with:
         key: ${{ env.toolchain-version }}-${{ matrix.board }}
 
@@ -87,15 +97,18 @@ jobs:
       run: make -j BOARD=${{ matrix.board }}
 
     - name: Upload built kernel
+      if: matrix.package
       uses: actions/upload-artifact@v7
       with:
         name: kernels-${{ matrix.board }}
         path: kernel*.img
 
     - name: Build (HDMI console)
+      if: matrix.package
       run: make clean && make -j BOARD=${{ matrix.board }} HDMI_CONSOLE=1
 
-    - name: Upload built kernel
+    - name: Upload built kernel (HDMI console)
+      if: matrix.package
       uses: actions/upload-artifact@v7
       with:
         name: kernels-hdmi-${{ matrix.board }}
