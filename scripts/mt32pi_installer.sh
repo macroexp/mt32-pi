@@ -622,7 +622,7 @@ It's now safe to remove the SD card from your card reader and insert it into you
 \Z1\ZuNOTE:\Zn
 MT-32 mode will be unavailable until you add MT-32 ROM files to the \Zb\Z4roms\Zn directory on the SD card.
 
-             Thankyou for using mt32-pi! \Z5<3\Zn
+             Thank you for using pim-32! \Z5<3\Zn
 
            \Z1\Zuhttps://github.com/macroexp/mt32-pi\Zn
       Based on mt32-pi by Dale Whinham (dwhinham)
