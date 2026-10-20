@@ -2,7 +2,7 @@
 
 **pim-32** is a community-maintained continuation of [mt32-pi](https://github.com/dwhinham/mt32-pi), created and developed by Dale Whinham ([@dwhinham](https://github.com/dwhinham)) from 2020 to 2023. The original project is no longer maintained. All credit for the design and the bulk of the code belongs to him; please respect his decision to step away and direct questions about pim-32 here, not to him.
 
-Current goals: update the Circle framework, FluidSynth, Munt and the build toolchain to current releases, then add Raspberry Pi 5 support. Download the latest build from [Releases]. Documentation links below still point to the original project's wiki, and devices still identify themselves as "mt32-pi".
+Current goals: update the Circle framework, FluidSynth, Munt and the build toolchain to current releases, then add Raspberry Pi 5 support. Download the latest build from [Releases], or see [BUILDING.md](BUILDING.md) to build it yourself. Documentation links below still point to the original project's wiki, and devices still identify themselves as "mt32-pi".
 
 ---
 

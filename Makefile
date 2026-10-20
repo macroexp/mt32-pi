@@ -145,7 +145,9 @@ all: circle-stdlib mt32emu fluidsynth
 # Clean kernel only
 #
 clean:
-	@$(MAKE) -f Kernel.mk clean
+# CHECK_DEPS=0: don't generate dependency files just to delete them
+# (fails noisily if the Circle patches have already been reversed)
+	@$(MAKE) -f Kernel.mk clean CHECK_DEPS=0
 
 #
 # Clean kernel and all dependencies
