@@ -226,7 +226,7 @@ void CMT32Synth::UpdateLCD(CLCD& LCD, unsigned int nTicks)
 
 #ifdef MIDI_DEBUG_CHANNEL
 	static unsigned int nLastDebugTicks = 0;
-	if (nTicks - nLastDebugTicks >= MSEC2HZ(2000))
+	if (nTicks - nLastDebugTicks >= Utility::MillisToTicks(2000u))
 	{
 		nLastDebugTicks = nTicks;
 		u8 Channels[9];
