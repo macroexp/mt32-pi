@@ -42,7 +42,9 @@ Useful options:
 - `--midi DIR`: render your own MIDI files, e.g. favourite game soundtracks, instead of the generated set.
 - `--old` / `--new`: compare other Munt git refs.
 
-Renders are written to `munt-ab-work/render-<machine>-old/` and `-new/` for listening in any audio editor. Settings mirror mt32-pi: COARSE analog filter, 48 kHz, GOOD resampler quality.
+Renders are written to `munt-ab-work/render-<machine>-old/` and `-new/` for listening in any audio editor. Settings mirror mt32-pi: COARSE analog filter, 48 kHz, GOOD resampler quality. Leading silence is kept, so reported times match positions in the MIDI file. For the generated set, `timbre_sysex_held` sends its first timbre change at 1.0 s.
+
+Re-running is quick: the Munt clone and renderer builds are reused.
 
 ## 2. Hardware recordings
 
