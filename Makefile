@@ -39,12 +39,15 @@ submodules:
 #
 $(CIRCLE_STDLIB_CONFIG) $(CIRCLE_CONFIG)&:
 	@echo "Configuring for Raspberry Pi $(RASPBERRYPI) ($(BITS) bit)"
+	@${APPLY_PATCH} $(CIRCLESTDLIBHOME) patches/circle-stdlib-16-extra-newlib-cflags.patch
+	EXTRA_CFLAGS_FOR_TARGET="$(NEWLIB_COMPAT_CFLAGS)" \
 	$(CIRCLESTDLIBHOME)/configure --raspberrypi=$(RASPBERRYPI) --prefix=$(PREFIX)
 
 # Apply patches
 	@${APPLY_PATCH} $(CIRCLEHOME) patches/circle-45-minimal-usb-drivers.patch
 	@${APPLY_PATCH} $(CIRCLEHOME) patches/circle-45-cp210x-remove-partnum-check.patch
 	@${APPLY_PATCH} $(CIRCLEHOME) patches/circle-45-gzip-kernel.patch
+	@${APPLY_PATCH} $(CIRCLEHOME) patches/circle-45-gcc13-hosted-cxx.patch
 
 ifeq ($(strip $(GC_SECTIONS)),1)
 # Enable function/data sections for circle-stdlib
@@ -149,10 +152,12 @@ clean:
 #
 mrproper: clean
 # Reverse patches
+	@${REVERSE_PATCH} $(CIRCLEHOME) patches/circle-45-gcc13-hosted-cxx.patch
 	@${REVERSE_PATCH} $(CIRCLEHOME) patches/circle-45-gzip-kernel.patch
 	@${REVERSE_PATCH} $(CIRCLEHOME) patches/circle-45-cp210x-remove-partnum-check.patch
 	@${REVERSE_PATCH} $(CIRCLEHOME) patches/circle-45-minimal-usb-drivers.patch
 	@${REVERSE_PATCH} $(FLUIDSYNTHHOME) patches/fluidsynth-2.3.1-circle.patch
+	@${REVERSE_PATCH} $(CIRCLESTDLIBHOME) patches/circle-stdlib-16-extra-newlib-cflags.patch
 
 # Clean circle-stdlib
 	@if [ -f $(CIRCLE_STDLIB_CONFIG) ]; then $(MAKE) -C $(CIRCLESTDLIBHOME) mrproper; fi

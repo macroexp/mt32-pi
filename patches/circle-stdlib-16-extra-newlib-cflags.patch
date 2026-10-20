@@ -1,0 +1,12 @@
+diff --git a/configure b/configure
+index 8cc85eb..7608349 100755
+--- a/configure
++++ b/configure
+@@ -204,6 +204,7 @@ then
+ else
+     CFLAGS_FOR_TARGET="$ARCH -DRASPPI=$RASPBERRYPI $OPTIONS -Wno-parentheses"
+ fi
++CFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET $EXTRA_CFLAGS_FOR_TARGET"
+ export CFLAGS_FOR_TARGET
+ 
+ (

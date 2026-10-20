@@ -58,6 +58,17 @@ ifeq ($(strip $(GC_SECTIONS)),1)
 CFLAGS_EXTERNAL += -ffunction-sections -fdata-sections
 endif
 
+# circle-newlib predates GCC 14/15, which default to C23 and turn implicit
+# declarations, implicit int, int-conversion and incompatible pointer types
+# into hard errors. Build it as gnu17 with those left as warnings.
+# Passed via patches/circle-stdlib-16-extra-newlib-cflags.patch.
+# TODO: revisit when circle-stdlib is upgraded (Phase 3).
+NEWLIB_COMPAT_CFLAGS = -std=gnu17 \
+		       -Wno-error=implicit-function-declaration \
+		       -Wno-error=implicit-int \
+		       -Wno-error=int-conversion \
+		       -Wno-error=incompatible-pointer-types
+
 ifeq ($(PREFIX), arm-none-eabi-)
 CMAKE_TOOLCHAIN_FLAGS=-DCMAKE_TOOLCHAIN_FILE=../cmake/arm-none-eabi.cmake
 else

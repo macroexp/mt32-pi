@@ -1,0 +1,23 @@
+--- a/Rules.mk
++++ b/Rules.mk
+@@ -166,12 +166,19 @@
+ 	   -D__VCCOREVER__=0x04000000 -U__unix__ -U__linux__ #-DNDEBUG
+ 
+ AFLAGS	+= $(ARCH) $(DEFINE) $(INCLUDE) $(OPTIMIZE)
+-CFLAGS	+= $(ARCH) -Wall -fsigned-char -ffreestanding -g \
++CFLAGS	+= $(ARCH) -Wall -fsigned-char -g \
+ 	   $(DEFINE) $(INCLUDE) $(EXTRAINCLUDE) $(OPTIMIZE)
+ CPPFLAGS+= $(CFLAGS) $(STANDARD)
+ 
++ifneq ($(filter 0 1,$(STDLIB_SUPPORT)),)
++CFLAGS += -ffreestanding
++endif
++
+ ifneq ($(strip $(CLANG)),1)
+ LDFLAGS	+= --section-start=.init=$(LOADADDR)
++ifneq ($(strip $(shell $(LD) --help | grep -F no-warn-rwx-segments | wc -l)),0)
++LDFLAGS	+= --no-warn-rwx-segments
++endif
+ else
+ LDFLAGS	+= -Wl,--section-start=.init=$(LOADADDR)
+ endif
