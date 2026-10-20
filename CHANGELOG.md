@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-10-19
+
+### Fixed
+
+- GeneralUser GS's effects profile wasn't being applied in 0.14.0, because it was still named for the old v1.511 SoundFont. It's now `GeneralUser GS v2.0.3.cfg`, with the reverb and chorus settings the SoundFont's author recommends for v2.0.3. Output level is unchanged.
+
 ## [0.14.0] - 2026-10-19
 
 First release of **pim-32**, a community-maintained continuation of [mt32-pi](https://github.com/dwhinham/mt32-pi) by Dale Whinham. Versions continue from mt32-pi's last release (0.13.1).
@@ -560,7 +566,8 @@ First release of **pim-32**, a community-maintained continuation of [mt32-pi](ht
 
 - Initial version.
 
-[unreleased]: https://github.com/macroexp/mt32-pi/compare/v0.14.0..HEAD
+[unreleased]: https://github.com/macroexp/mt32-pi/compare/v0.14.1..HEAD
+[0.14.1]: https://github.com/macroexp/mt32-pi/compare/v0.14.0..v0.14.1
 [0.14.0]: https://github.com/macroexp/mt32-pi/releases/tag/v0.14.0
 [0.13.1]: https://github.com/dwhinham/mt32-pi/compare/v0.13.0..v0.13.1
 [0.13.0]: https://github.com/dwhinham/mt32-pi/compare/v0.12.1..v0.13.0
