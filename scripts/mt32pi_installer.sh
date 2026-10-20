@@ -377,7 +377,10 @@ function get_latest_version {
 
 	temp_dir="$1"
 	temp_file=$(mktemp) || return 1
-	release_url=$("${CURL[@]}" -s -L $GITHUB_API_URL | jq -r ".assets[0].browser_download_url") || return 1
+	release_url=$("${CURL[@]}" -s -L "$GITHUB_API_URL" | jq -r ".assets[0].browser_download_url // empty") || return 1
+	if [ -z "$release_url" ]; then
+		die "No mt32-pi release is available for download yet."
+	fi
 
 	"${CURL[@]}" -L -o "$temp_file" "$release_url" 2>&1 | "${DIALOG[@]}" --progressbox "Downloading mt32-pi..." 30 83 || return 1
 	unzip "$temp_file" -d "$temp_dir" | "${DIALOG[@]}" --progressbox "Extracting mt32-pi..." 30 83 || return 1
