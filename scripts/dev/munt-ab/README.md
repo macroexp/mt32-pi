@@ -54,6 +54,16 @@ Renders are written to `munt-ab-work/render-<machine>-old/` and `-new/` for list
 
 Re-running is quick: the Munt clone and renderer builds are reused.
 
+### Partial report
+
+When notes go missing, `--report` shows what the new library's partial allocator did with every note. It lists each Note On it **ignored** for lack of partials, and each one that made it **cut short** another playing note. Each line shows the time, MIDI channel, key, and how many notes each part was playing at that moment. It also prints the partial reserve the MIDI file set up, and a per-channel summary.
+
+```sh
+scripts/dev/munt-ab/run.sh --roms /path/to/roms --machine mt32_1_07 --report --midi /path/to/midi-files
+```
+
+`--report` needs a specific machine ID (`mt32_1_07`, `mt32_2_04`, `cm32l_1_02` …), not `mt32` or `cm32l`.
+
 ## 2. Hardware recordings
 
 Use two SD cards that differ only in the kernel:
