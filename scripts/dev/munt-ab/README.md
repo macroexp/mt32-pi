@@ -48,6 +48,7 @@ Useful options:
 
 - `--machine mt32_1_07` (or whichever v1.x set you own): only old-gen ROMs show the partial allocator change. `--machine mt32` picks your *highest* MT-32 ROM version, which is new-gen if you have a v2.x set. Run again with `--machine cm32l` for the CM-32L.
 - `--midi DIR`: render your own MIDI files, e.g. favourite game soundtracks, instead of the generated set.
+- `--sysex FILE`: send a setup file before each MIDI file, as you do with the device (raw `.syx`, or a `.mid` of SysEx). Most Sierra soundtracks need their instrument upload to sound right. Repeatable; files are sent in order.
 - `--old` / `--new`: compare other Munt git refs.
 
 Renders are written to `munt-ab-work/render-<machine>-old/` and `-new/` for listening in any audio editor. Settings mirror mt32-pi: COARSE analog filter, 48 kHz, GOOD resampler quality. Leading silence is kept, so reported times match positions in the MIDI file. For the generated set, `timbre_sysex_held` sends its first timbre change at 1.0 s.
@@ -56,11 +57,19 @@ Re-running is quick: the Munt clone and renderer builds are reused.
 
 ### Partial report
 
-When notes go missing, `--report` shows what the new library's partial allocator did with every note. It lists each Note On it **ignored** for lack of partials, and each one that made it **cut short** another playing note. Each line shows the time, MIDI channel, key, and how many notes each part was playing at that moment. It also prints the partial reserve the MIDI file set up, and a per-channel summary.
+When notes go missing, `--report` shows what the new library did with every note, using the same MIDI timing as mt32-pi:
 
 ```sh
-scripts/dev/munt-ab/run.sh --roms /path/to/roms --machine mt32_1_07 --report --midi /path/to/midi-files
+scripts/dev/munt-ab/run.sh --roms /path/to/roms --machine mt32_1_07 --report \
+    --sysex /path/to/setup.syx --channel 6 --midi /path/to/midi-files
 ```
+
+It prints:
+
+- **Every Note On the allocator ignored** for lack of partials, and **every one that made it cut short** a playing note. Each line has the time, MIDI channel, key, and how many notes each part was playing.
+- **Each part's setup** at the end: MIDI channel, instrument (group and number from Patch Temp, name from its working copy), output level and pan. A blank name usually means an empty instrument.
+- A **per-channel summary** of ignored and cut-short notes, and a note if the setup file writes past the 64 user instrument slots, which Munt 2.8.2 and later ignore.
+- With `--channel N`, a **timeline** in half-second windows: notes received, the most notes playing at once on that channel's part, and the part's volume. Windows where notes arrive but none play are marked `no notes playing`, and windows where notes play at volume 0 are marked `volume 0`. Program changes on the part are listed above the timeline.
 
 `--report` needs a specific machine ID (`mt32_1_07`, `mt32_2_04`, `cm32l_1_02` …), not `mt32` or `cm32l`.
 

@@ -12,19 +12,24 @@
 # python3, and your own MT-32 / CM-32L ROM files.
 #
 # Usage:
-#   run.sh --roms DIR [--machine ID] [--midi DIR] [--old REF] [--new REF] [--work DIR]
+#   run.sh --roms DIR [--machine ID] [--midi DIR] [--sysex FILE]... [--old REF] [--new REF]
+#          [--work DIR] [--report [--channel N]]
 #
 #   --roms DIR     Directory containing MT-32 and/or CM-32L ROM files (required)
 #   --machine ID   mt32emu machine ID, e.g. mt32, cm32l, mt32_1_07 (default: mt32).
 #                  Old-gen units (mt32_1_04 ... mt32_1_07, mt32_bluer) show the
 #                  partial allocator changes; run once with each ROM set you use.
 #   --midi DIR     Directory of .mid files to render (default: generated test set)
+#   --sysex FILE   Send this setup file before each MIDI file, as you would to the
+#                  device (raw .syx, or a .mid of SysEx). Repeatable, sent in order.
 #   --old REF      Munt git ref for the old library (default: libmt32emu_2_7_0)
 #   --new REF      Munt git ref for the new library (default: libmt32emu_2_8_3)
 #   --work DIR     Working directory (default: ./munt-ab-work)
 #   --report       Instead of comparing renders, list every note the NEW library
-#                  refuses or cuts short for lack of partials (needs a specific
-#                  --machine such as mt32_1_07)
+#                  refuses or cuts short for lack of partials, and each part's
+#                  setup (needs a specific --machine such as mt32_1_07)
+#   --channel N    With --report: timeline for MIDI channel N showing notes
+#                  received vs. notes playing on its part, and its volume
 #
 # Render settings mirror mt32-pi: COARSE analog filter, 48 kHz output, GOOD
 # resampler quality, other options at library defaults.
@@ -39,6 +44,8 @@ OLD_REF="libmt32emu_2_7_0"
 NEW_REF="libmt32emu_2_8_3"
 WORK="./munt-ab-work"
 REPORT=0
+CHANNEL=""
+SYSEX=()
 MUNT_URL="https://github.com/munt/munt.git"
 
 usage() {
@@ -55,6 +62,12 @@ while [ $# -gt 0 ]; do
 	--new) NEW_REF="$2"; shift 2 ;;
 	--work) WORK="$2"; shift 2 ;;
 	--report) REPORT=1; shift ;;
+	--channel) CHANNEL="$2"; shift 2 ;;
+	--sysex)
+		[ -f "$2" ] || { echo "SysEx file not found: $2" >&2; exit 2; }
+		SYSEX+=("$(cd "$(dirname "$2")" && pwd)/$(basename "$2")")
+		shift 2
+		;;
 	-h | --help) usage ;;
 	*) echo "Unknown option: $1" >&2; usage ;;
 	esac
@@ -62,6 +75,10 @@ done
 
 [ -n "$ROMS" ] || { echo "--roms is required" >&2; usage; }
 [ -d "$ROMS" ] || { echo "ROM directory not found: $ROMS" >&2; exit 2; }
+if [ -n "$CHANNEL" ] && [ "$REPORT" != 1 ]; then
+	echo "--channel only applies with --report" >&2
+	exit 2
+fi
 
 mkdir -p "$WORK"
 WORK=$(cd "$WORK" && pwd)
@@ -126,7 +143,10 @@ if [ "$REPORT" = 1 ]; then
 	for midi in "${files[@]}"; do
 		echo
 		echo "######## $(basename "$midi") ($MACHINE)"
-		"$tool" --rom-dir "$ROMS" --machine-id "$MACHINE" "$midi"
+		args=(--rom-dir "$ROMS" --machine-id "$MACHINE")
+		for f in ${SYSEX[@]+"${SYSEX[@]}"}; do args+=(--sysex "$f"); done
+		[ -z "$CHANNEL" ] || args+=(--channel "$CHANNEL")
+		"$tool" "${args[@]}" "$midi"
 	done
 	exit 0
 fi
@@ -147,7 +167,7 @@ render() {
 		"$tool" --quiet --force --rom-dir="$ROMS" --machine-id="$MACHINE" \
 			--analog-output-mode=1 --sample-rate=48000 --src-quality=2 \
 			--record-max-start-silence=-1 \
-			--output="$out/$base.wav" "$midi"
+			--output="$out/$base.wav" ${SYSEX[@]+"${SYSEX[@]}"} "$midi"
 	done
 }
 render old
