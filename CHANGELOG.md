@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `BUILDING.md` with instructions for building pim-32 yourself.
+- Tools for A/B testing Munt upgrades, in `scripts/dev/munt-ab`.
+
+### Changed
+
+- Updated the MT-32 emulation library (Munt libmt32emu) from 2.7.0 to 2.8.3. Most music sounds identical. Differences you may notice, all from Munt's changes towards real hardware behaviour:
+  - With MT-32 v1.x control ROMs, dense passages that run out of partials now steal voices the way old-generation units do.
+  - Changing a part's timbre by SysEx now makes notes already playing on that part decay, like the real hardware.
+  - Malformed MIDI messages are ignored instead of being played.
+  - Lower CPU use.
+- Updated inih (configuration file parser) from r56 to r62. Over-long lines in configuration files are now skipped cleanly.
+
 ## [0.14.1] - 2026-10-19
 
 ### Fixed
