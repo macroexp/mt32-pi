@@ -54,7 +54,7 @@ CFLAGS		+=	-Werror -Wextra -Wno-unused-parameter
 
 CFLAGS		+=	-I "$(NEWLIBDIR)/include" \
 			-I $(STDDEF_INCPATH) \
-			-I $(CIRCLESTDLIBHOME)/include \
+			-isystem $(CIRCLESTDLIBHOME)/include \
 			-I include \
 			-I .
 
