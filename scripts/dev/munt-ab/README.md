@@ -49,6 +49,7 @@ Useful options:
 - `--machine mt32_1_07` (or whichever v1.x set you own): only old-gen ROMs show the partial allocator change. `--machine mt32` picks your *highest* MT-32 ROM version, which is new-gen if you have a v2.x set. Run again with `--machine cm32l` for the CM-32L.
 - `--midi DIR`: render your own MIDI files, e.g. favourite game soundtracks, instead of the generated set.
 - `--sysex FILE`: send a setup file before each MIDI file, as you do with the device (raw `.syx`, or a `.mid` of SysEx). Most Sierra soundtracks need their instrument upload to sound right. Repeatable; files are sent in order.
+- `--solo N`: render only MIDI channel N (SysEx is kept, so the setup still applies) and print the loudness of every second, old vs. new. Seconds that are audible in the old render but at least 20 dB quieter in the new one are marked `much quieter in new`. Use it to check whether one instrument goes missing, without listening.
 - `--old` / `--new`: compare other Munt git refs.
 
 Renders are written to `munt-ab-work/render-<machine>-old/` and `-new/` for listening in any audio editor. Settings mirror mt32-pi: COARSE analog filter, 48 kHz, GOOD resampler quality. Leading silence is kept, so reported times match positions in the MIDI file. For the generated set, `timbre_sysex_held` sends its first timbre change at 1.0 s.

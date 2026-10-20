@@ -13,7 +13,7 @@
 #
 # Usage:
 #   run.sh --roms DIR [--machine ID] [--midi DIR] [--sysex FILE]... [--old REF] [--new REF]
-#          [--work DIR] [--report [--channel N]]
+#          [--work DIR] [--solo N] [--report [--channel N]]
 #
 #   --roms DIR     Directory containing MT-32 and/or CM-32L ROM files (required)
 #   --machine ID   mt32emu machine ID, e.g. mt32, cm32l, mt32_1_07 (default: mt32).
@@ -25,6 +25,8 @@
 #   --old REF      Munt git ref for the old library (default: libmt32emu_2_7_0)
 #   --new REF      Munt git ref for the new library (default: libmt32emu_2_8_3)
 #   --work DIR     Working directory (default: ./munt-ab-work)
+#   --solo N       Render only MIDI channel N (plus all SysEx) and show the loudness
+#                  of every second, old vs. new, flagging seconds that went quiet
 #   --report       Instead of comparing renders, list every note the NEW library
 #                  refuses or cuts short for lack of partials, and each part's
 #                  setup (needs a specific --machine such as mt32_1_07)
@@ -45,6 +47,7 @@ NEW_REF="libmt32emu_2_8_3"
 WORK="./munt-ab-work"
 REPORT=0
 CHANNEL=""
+SOLO=""
 SYSEX=()
 MUNT_URL="https://github.com/munt/munt.git"
 
@@ -63,6 +66,7 @@ while [ $# -gt 0 ]; do
 	--work) WORK="$2"; shift 2 ;;
 	--report) REPORT=1; shift ;;
 	--channel) CHANNEL="$2"; shift 2 ;;
+	--solo) SOLO="$2"; shift 2 ;;
 	--sysex)
 		[ -f "$2" ] || { echo "SysEx file not found: $2" >&2; exit 2; }
 		SYSEX+=("$(cd "$(dirname "$2")" && pwd)/$(basename "$2")")
@@ -77,6 +81,10 @@ done
 [ -d "$ROMS" ] || { echo "ROM directory not found: $ROMS" >&2; exit 2; }
 if [ -n "$CHANNEL" ] && [ "$REPORT" != 1 ]; then
 	echo "--channel only applies with --report" >&2
+	exit 2
+fi
+if [ -n "$SOLO" ] && [ "$REPORT" = 1 ]; then
+	echo "--solo doesn't apply with --report; use --channel there" >&2
 	exit 2
 fi
 
@@ -122,6 +130,19 @@ if [ -z "$MIDI" ]; then
 	python3 "$HERE/make_test_midi.py" "$MIDI" >/dev/null
 fi
 
+# Solo mode: copies of the MIDI files with only one channel's messages
+if [ -n "$SOLO" ]; then
+	solo_dir="$WORK/midi-solo-ch$SOLO"
+	rm -rf "$solo_dir"
+	mkdir -p "$solo_dir"
+	shopt -s nullglob
+	for midi in "$MIDI"/*.mid "$MIDI"/*.MID; do
+		python3 "$HERE/filter_midi.py" "$midi" "$solo_dir/$(basename "$midi")" "$SOLO"
+	done
+	shopt -u nullglob
+	MIDI="$solo_dir"
+fi
+
 # Partial report mode: list notes the new library refuses or cuts short
 if [ "$REPORT" = 1 ]; then
 	tool="$WORK/partial_report"
@@ -153,7 +174,7 @@ fi
 
 # 4. Render
 render() {
-	local name="$1" out="$WORK/render-$MACHINE-$1"
+	local name="$1" out="$WORK/render-$MACHINE${SOLO:+-ch$SOLO}-$1"
 	local tool="$WORK/build-$name/mt32emu_smf2wav/mt32emu-smf2wav"
 	rm -rf "$out" # no stale renders from earlier runs
 	mkdir -p "$out"
@@ -175,4 +196,6 @@ render new
 
 # 5. Compare
 echo "== Comparing ($MACHINE)"
-python3 "$HERE/compare_wavs.py" "$WORK/render-$MACHINE-old" "$WORK/render-$MACHINE-new"
+levels=()
+[ -z "$SOLO" ] || levels=(--levels)
+python3 "$HERE/compare_wavs.py" ${levels[@]+"${levels[@]}"} "$WORK/render-$MACHINE${SOLO:+-ch$SOLO}-old" "$WORK/render-$MACHINE${SOLO:+-ch$SOLO}-new"
