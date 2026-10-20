@@ -86,7 +86,7 @@ except ImportError:
     # Fall back on pkg_resources when packaging is unavailable
     from pkg_resources import parse_version
 
-GITHUB_REPO = "dwhinham/mt32-pi"
+GITHUB_REPO = "macroexp/mt32-pi"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases"
 SCRIPT_URL = f"https://github.com/{GITHUB_REPO}/raw/main/scripts/mt32pi_updater.py"
 SCRIPT_VERSION = "0.2.5"
