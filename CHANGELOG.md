@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-19
+
+First release of **pim-32**, a community-maintained continuation of [mt32-pi](https://github.com/dwhinham/mt32-pi) by Dale Whinham. Versions continue from mt32-pi's last release (0.13.1).
+
+### Changed
+
+- Built with Arm GNU Toolchain 15.2.rel1 (GCC 15.2), up from 11.3.rel1.
+- Bundled SoundFont is now GeneralUser GS v2.0.3 (was v1.511, which is no longer hosted).
+- The installer and updater now download releases from [macroexp/mt32-pi](https://github.com/macroexp/mt32-pi). Please manually re-download `mt32pi_updater.py` once to switch over.
+- The device still identifies itself as `mt32-pi` (boot log, FTP banner) so the updater keeps working across the rename.
+
+### Fixed
+
+- Audio output buffer was being allocated with zero length due to a missing pair of parentheses, so converted samples were written into neighbouring memory. Audio happened to work, but the buffer is now sized correctly.
+- Possible unterminated strings when parsing IP addresses from the configuration file, and in the FTP server's directory listing and `PORT` command.
+- Updater: no longer crashes when no releases are available, and ignores drafts, releases without files, and non-version tags.
+- Installer: reports a clear error instead of trying to download a missing release.
+
 ## [0.13.1] - 2023-03-18
 
 ### Changed
@@ -542,7 +560,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial version.
 
-[unreleased]: https://github.com/dwhinham/mt32-pi/compare/v0.13.1..HEAD
+[unreleased]: https://github.com/macroexp/mt32-pi/compare/v0.14.0..HEAD
+[0.14.0]: https://github.com/macroexp/mt32-pi/releases/tag/v0.14.0
 [0.13.1]: https://github.com/dwhinham/mt32-pi/compare/v0.13.0..v0.13.1
 [0.13.0]: https://github.com/dwhinham/mt32-pi/compare/v0.12.1..v0.13.0
 [0.12.1]: https://github.com/dwhinham/mt32-pi/compare/v0.12.0..v0.12.1

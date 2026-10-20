@@ -1,12 +1,12 @@
-## About this fork
+## pim-32
 
-This is a community-maintained fork of [mt32-pi](https://github.com/dwhinham/mt32-pi), created and developed by Dale Whinham ([@dwhinham](https://github.com/dwhinham)) from 2020 to 2023. The original project is no longer maintained. All credit for the design and the bulk of the code belongs to him; please respect his decision to step away and direct questions about this fork here, not to him.
+**pim-32** is a community-maintained continuation of [mt32-pi](https://github.com/dwhinham/mt32-pi), created and developed by Dale Whinham ([@dwhinham](https://github.com/dwhinham)) from 2020 to 2023. The original project is no longer maintained. All credit for the design and the bulk of the code belongs to him; please respect his decision to step away and direct questions about pim-32 here, not to him.
 
-Current goals: update the Circle framework, FluidSynth, Munt and the build toolchain to current releases, then add Raspberry Pi 5 support. Documentation links below still point to the original project's wiki.
+Current goals: update the Circle framework, FluidSynth, Munt and the build toolchain to current releases, then add Raspberry Pi 5 support. Download the latest build from [Releases]. Documentation links below still point to the original project's wiki, and devices still identify themselves as "mt32-pi".
 
 ---
 
-[![mt32-pi CI](https://github.com/macroexp/mt32-pi/actions/workflows/ci.yml/badge.svg)](https://github.com/macroexp/mt32-pi/actions/workflows/ci.yml)
+[![pim-32 CI](https://github.com/macroexp/mt32-pi/actions/workflows/ci.yml/badge.svg)](https://github.com/macroexp/mt32-pi/actions/workflows/ci.yml)
 
 <h1 align="center">
     <img width="90%" title="mt32-pi - Baremetal synthesizer system" src="images/mt32pi_logo.svg">
