@@ -89,6 +89,7 @@ $(MT32EMUBUILDDIR)/.done: $(CIRCLESTDLIBHOME)/.done
 		 -DCMAKE_BUILD_TYPE=Release \
 		 -Dlibmt32emu_C_INTERFACE=FALSE \
 		 -Dlibmt32emu_SHARED=FALSE \
+		 -DBUILD_TESTING=OFF \
 		 $(MT32EMUHOME) \
 		 >/dev/null
 	@cmake --build $(MT32EMUBUILDDIR)
