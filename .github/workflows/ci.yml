@@ -46,6 +46,11 @@ jobs:
     - name: Fetch submodules
       run: make submodules
 
+    # FluidSynth's CMake requires host glib via pkg-config even though the
+    # Circle patch removes all glib usage; older runner images preinstalled it.
+    - name: Install host build dependencies
+      run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libglib2.0-dev pkg-config
+
     - name: Setup ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
