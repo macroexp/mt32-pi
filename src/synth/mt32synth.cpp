@@ -35,6 +35,12 @@ constexpr size_t ROMOffsetVersionString1_07 = 0x4011;
 constexpr size_t ROMOffsetVersionStringNew  = 0x2206;
 constexpr u32 MemoryAddressMIDIChannels     = 0x4000D;
 constexpr u32 MemoryAddressMasterVolume     = 0x40016;
+constexpr u32 MemoryAddressPatchTemp        = 0x0C000;
+
+#ifdef MIDI_DEBUG_CHANNEL
+// Debug builds: log non-note messages on this MIDI channel (1-16) and its part's state
+constexpr u8 DebugChannel = MIDI_DEBUG_CHANNEL - 1;
+#endif
 
 // SysEx commands for setting MIDI channel assignment (no SysEx framing, just 3-byte address and 9 channel values)
 const u8 CMT32Synth::StandardMIDIChannelsSysEx[] = { 0x10, 0x00, 0x0D, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09 };
@@ -122,7 +128,15 @@ bool CMT32Synth::Initialize()
 
 void CMT32Synth::HandleMIDIShortMessage(u32 nMessage)
 {
-	m_pSynth->playMsg(nMessage);
+#ifdef MIDI_DEBUG_CHANNEL
+	const u8 nStatus  = nMessage & 0xFF;
+	const u8 nCommand = nStatus & 0xF0;
+	if (nStatus < 0xF0 && (nStatus & 0x0F) == DebugChannel && nCommand != 0x80 && nCommand != 0x90)
+		LOGNOTE("ch%d in: %02X %02X %02X", DebugChannel + 1, nStatus, (nMessage >> 8) & 0xFF, (nMessage >> 16) & 0xFF);
+#endif
+
+	if (!m_pSynth->playMsg(nMessage))
+		LOGWARN("mt32emu rejected MIDI message %06X", static_cast<unsigned int>(nMessage));
 
 	// Update MIDI monitor
 	CSynthBase::HandleMIDIShortMessage(nMessage);
@@ -130,7 +144,15 @@ void CMT32Synth::HandleMIDIShortMessage(u32 nMessage)
 
 void CMT32Synth::HandleMIDISysExMessage(const u8* pData, size_t nSize)
 {
-	m_pSynth->playSysex(pData, nSize);
+#ifdef MIDI_DEBUG_CHANNEL
+	if (nSize >= 9)
+		LOGNOTE("SysEx in: %u bytes, dev %02X cmd %02X addr %02X %02X %02X", static_cast<unsigned int>(nSize), pData[2], pData[4], pData[5], pData[6], pData[7]);
+	else
+		LOGNOTE("SysEx in: %u bytes", static_cast<unsigned int>(nSize));
+#endif
+
+	if (!m_pSynth->playSysex(pData, nSize))
+		LOGWARN("mt32emu rejected SysEx message (%u bytes)", static_cast<unsigned int>(nSize));
 }
 
 void CMT32Synth::AllSoundOff()
@@ -201,6 +223,26 @@ void CMT32Synth::UpdateLCD(CLCD& LCD, unsigned int nTicks)
 		nStatusRow = nHeight / 16 - 1;
 		nBarHeight = nHeight - 16;
 	}
+
+#ifdef MIDI_DEBUG_CHANNEL
+	static unsigned int nLastDebugTicks = 0;
+	if (nTicks - nLastDebugTicks >= MSEC2HZ(2000))
+	{
+		nLastDebugTicks = nTicks;
+		u8 Channels[9];
+		m_pSynth->readMemory(MemoryAddressMIDIChannels, sizeof(Channels), Channels);
+		for (u8 nPart = 0; nPart < 8; ++nPart)
+		{
+			if (Channels[nPart] != DebugChannel)
+				continue;
+			u8 PatchTemp[16], Keys[256], Velocities[256];
+			m_pSynth->readMemory(MemoryAddressPatchTemp + nPart * sizeof(PatchTemp), sizeof(PatchTemp), PatchTemp);
+			const unsigned int nPlaying = m_pSynth->getPlayingNotes(nPart, Keys, Velocities);
+			LOGNOTE("ch%d part %d: timbre %c%02d level %d pan %d playing %u", DebugChannel + 1, nPart + 1,
+				"ABMR"[PatchTemp[0] & 3], PatchTemp[1] + 1, PatchTemp[8], PatchTemp[9], nPlaying);
+		}
+	}
+#endif
 
 	float PartLevels[9], PartPeaks[9];
 	GetPartLevels(nTicks, PartLevels, PartPeaks);

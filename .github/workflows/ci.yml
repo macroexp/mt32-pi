@@ -105,7 +105,7 @@ jobs:
 
     - name: Build (HDMI console)
       if: matrix.package
-      run: make clean && make -j BOARD=${{ matrix.board }} HDMI_CONSOLE=1
+      run: make clean && make -j BOARD=${{ matrix.board }} HDMI_CONSOLE=1 MIDI_DEBUG_CHANNEL=6
 
     - name: Upload built kernel (HDMI console)
       if: matrix.package

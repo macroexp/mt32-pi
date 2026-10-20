@@ -75,6 +75,11 @@ ifeq ($(HDMI_CONSOLE), 1)
 DEFINE		+=	-D HDMI_CONSOLE
 endif
 
+# Debug builds only: log non-note MIDI messages on this channel (1-16)
+ifneq ($(MIDI_DEBUG_CHANNEL),)
+DEFINE		+=	-D MIDI_DEBUG_CHANNEL=$(MIDI_DEBUG_CHANNEL)
+endif
+
 -include $(DEPS)
 
 INCLUDE		+=	-I $(MT32EMUBUILDDIR)/include
