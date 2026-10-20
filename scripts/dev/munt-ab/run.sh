@@ -113,6 +113,7 @@ render() {
 		base=$(basename "${midi%.*}")
 		"$tool" --quiet --force --rom-dir="$ROMS" --machine-id="$MACHINE" \
 			--analog-output-mode=1 --sample-rate=48000 --src-quality=2 \
+			--record-max-start-silence=-1 \
 			--output="$out/$base.wav" "$midi"
 	done
 }
