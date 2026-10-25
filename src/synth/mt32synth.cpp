@@ -40,6 +40,26 @@ constexpr u32 MemoryAddressPatchTemp        = 0x0C000;
 #ifdef MIDI_DEBUG_CHANNEL
 // Debug builds: log non-note messages on this MIDI channel (1-16) and its part's state
 constexpr u8 DebugChannel = MIDI_DEBUG_CHANNEL - 1;
+constexpr u32 MemoryAddressTimbreTemp   = 0x10000; // SysEx 04 00 00
+constexpr u32 MemoryAddressTimbreMemory = 0x20000; // SysEx 08 00 00
+constexpr size_t TimbreParamSize        = 246;
+constexpr size_t PaddedTimbreSize       = 256;
+
+static unsigned int DebugByteSum(const u8* pData, size_t nSize)
+{
+	unsigned int nSum = 0;
+	for (size_t i = 0; i < nSize; ++i)
+		nSum += pData[i];
+	return nSum;
+}
+
+// First 10 bytes of a timbre are its name
+static void DebugDescribeTimbre(const u8* pTimbre, char* pName)
+{
+	for (size_t i = 0; i < 10; ++i)
+		pName[i] = (pTimbre[i] >= 0x20 && pTimbre[i] < 0x7F) ? static_cast<char>(pTimbre[i]) : '.';
+	pName[10] = '\0';
+}
 #endif
 
 // SysEx commands for setting MIDI channel assignment (no SysEx framing, just 3-byte address and 9 channel values)
@@ -240,6 +260,21 @@ void CMT32Synth::UpdateLCD(CLCD& LCD, unsigned int nTicks)
 			const unsigned int nPlaying = m_pSynth->getPlayingNotes(nPart, Keys, Velocities);
 			LOGNOTE("ch%d part %d: timbre %c%02d level %d pan %d playing %u", DebugChannel + 1, nPart + 1,
 				"ABMR"[PatchTemp[0] & 3], PatchTemp[1] + 1, PatchTemp[8], PatchTemp[9], nPlaying);
+
+			// The part's working copy of its timbre (what it actually plays)
+			u8 Timbre[TimbreParamSize];
+			char Name[11];
+			m_pSynth->readMemory(MemoryAddressTimbreTemp + nPart * TimbreParamSize, TimbreParamSize, Timbre);
+			DebugDescribeTimbre(Timbre, Name);
+			LOGNOTE("  temp \"%s\" sum %u", Name, DebugByteSum(Timbre, TimbreParamSize));
+
+			// Timbre Memory entry, if the part uses an uploaded (group M) timbre
+			if ((PatchTemp[0] & 3) == 2)
+			{
+				m_pSynth->readMemory(MemoryAddressTimbreMemory + (PatchTemp[1] & 0x3F) * PaddedTimbreSize, TimbreParamSize, Timbre);
+				DebugDescribeTimbre(Timbre, Name);
+				LOGNOTE("  mem  \"%s\" sum %u", Name, DebugByteSum(Timbre, TimbreParamSize));
+			}
 		}
 	}
 #endif
