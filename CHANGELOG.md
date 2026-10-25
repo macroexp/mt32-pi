@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-25
+
 ### Added
 
 - Tools for A/B testing Munt upgrades, in `scripts/dev/munt-ab`.
@@ -585,7 +587,8 @@ First release of **pim-32**, a community-maintained continuation of [mt32-pi](ht
 
 - Initial version.
 
-[unreleased]: https://github.com/macroexp/mt32-pi/compare/v0.14.2..HEAD
+[unreleased]: https://github.com/macroexp/mt32-pi/compare/v0.15.0..HEAD
+[0.15.0]: https://github.com/macroexp/mt32-pi/compare/v0.14.2..v0.15.0
 [0.14.2]: https://github.com/macroexp/mt32-pi/compare/v0.14.1..v0.14.2
 [0.14.1]: https://github.com/macroexp/mt32-pi/compare/v0.14.0..v0.14.1
 [0.14.0]: https://github.com/macroexp/mt32-pi/releases/tag/v0.14.0
