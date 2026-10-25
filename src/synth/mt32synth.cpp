@@ -20,6 +20,8 @@
 // mt32-pi. If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include <cstdio>
+
 #include <circle/logger.h>
 #include <circle/timer.h>
 
@@ -326,6 +328,33 @@ void CMT32Synth::UpdateLCD(CLCD& LCD, unsigned int nTicks)
 				DebugDescribeTimbre(Timbre, Name);
 				LOGNOTE("  mem  \"%s\" sum %u", Name, DebugByteSum(Timbre, TimbreParamSize));
 			}
+		}
+
+		// Every 10 s: every part's instrument, as "part:timbre temp-sum/memory-sum"; "!" if they differ
+		if (nDebugPCMChecks % 5 == 1)
+		{
+			char Line[2][128];
+			for (u8 nHalf = 0; nHalf < 2; ++nHalf)
+			{
+				size_t nLength = 0;
+				for (u8 nPart = nHalf * 4; nPart < nHalf * 4 + 4; ++nPart)
+				{
+					u8 PatchTemp[16], Timbre[TimbreParamSize];
+					m_pSynth->readMemory(MemoryAddressPatchTemp + nPart * sizeof(PatchTemp), sizeof(PatchTemp), PatchTemp);
+					m_pSynth->readMemory(MemoryAddressTimbreTemp + nPart * TimbreParamSize, TimbreParamSize, Timbre);
+					const unsigned int nTempSum = DebugByteSum(Timbre, TimbreParamSize);
+					unsigned int nMemSum = nTempSum;
+					if ((PatchTemp[0] & 3) == 2)
+					{
+						m_pSynth->readMemory(MemoryAddressTimbreMemory + (PatchTemp[1] & 0x3F) * PaddedTimbreSize, TimbreParamSize, Timbre);
+						nMemSum = DebugByteSum(Timbre, TimbreParamSize);
+					}
+					nLength += snprintf(Line[nHalf] + nLength, sizeof(Line[nHalf]) - nLength, " %u:%c%02d %u/%u%s",
+						nPart + 1, "ABMR"[PatchTemp[0] & 3], PatchTemp[1] + 1, nTempSum, nMemSum, nTempSum == nMemSum ? "" : "!");
+				}
+			}
+			LOGNOTE("parts%s", Line[0]);
+			LOGNOTE("parts%s", Line[1]);
 		}
 	}
 #endif
