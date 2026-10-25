@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-10-25
+
 ### Fixed
 
 - Builds are back on Arm GNU Toolchain 11.3.rel1. The GCC 15 builds in 0.14.0 and 0.14.1 could fail to find ROMs or start a synth at boot, crash with a "sync failure", or leave some uploaded MT-32 instruments silent. The GCC 15 compatibility fixes stay in place so the toolchain can move forward again once Circle is updated.
@@ -570,7 +572,8 @@ First release of **pim-32**, a community-maintained continuation of [mt32-pi](ht
 
 - Initial version.
 
-[unreleased]: https://github.com/macroexp/mt32-pi/compare/v0.14.1..HEAD
+[unreleased]: https://github.com/macroexp/mt32-pi/compare/v0.14.2..HEAD
+[0.14.2]: https://github.com/macroexp/mt32-pi/compare/v0.14.1..v0.14.2
 [0.14.1]: https://github.com/macroexp/mt32-pi/compare/v0.14.0..v0.14.1
 [0.14.0]: https://github.com/macroexp/mt32-pi/releases/tag/v0.14.0
 [0.13.1]: https://github.com/dwhinham/mt32-pi/compare/v0.13.0..v0.13.1
