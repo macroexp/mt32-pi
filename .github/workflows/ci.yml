@@ -114,6 +114,16 @@ jobs:
         name: kernels-hdmi-${{ matrix.board }}
         path: kernel*.img
 
+    # Debug branch: keep symbols so crash addresses can be mapped to code
+    - name: Upload kernel symbols (HDMI console)
+      if: matrix.package
+      uses: actions/upload-artifact@v7
+      with:
+        name: symbols-hdmi-${{ matrix.board }}
+        path: |
+          kernel*.elf
+          kernel*.map
+
   package:
     needs: build
     runs-on: ubuntu-latest
