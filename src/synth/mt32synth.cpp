@@ -53,6 +53,52 @@ static unsigned int DebugByteSum(const u8* pData, size_t nSize)
 	return nSum;
 }
 
+// Fingerprints of Munt's decoded PCM waves, to catch memory corruption on the device
+constexpr unsigned int DebugMaxPCMWaves = 256;
+static u32 DebugPCMReference[DebugMaxPCMWaves];
+static unsigned int nDebugPCMWaves = 0;
+static unsigned int nDebugPCMChecks = 0;
+
+static void DebugCapturePCM(MT32Emu::Synth* pSynth)
+{
+	nDebugPCMWaves = Utility::Min(pSynth->debugPCMWaveCount(), DebugMaxPCMWaves);
+	nDebugPCMChecks = 0;
+	for (unsigned int i = 0; i < nDebugPCMWaves; ++i)
+		DebugPCMReference[i] = pSynth->debugPCMWaveChecksum(i);
+
+	LOGNOTE("PCM: %u waves fingerprinted; wave 39 %08X, wave 42 %08X", nDebugPCMWaves,
+		nDebugPCMWaves > 39 ? DebugPCMReference[39] : 0, nDebugPCMWaves > 42 ? DebugPCMReference[42] : 0);
+	for (unsigned int i = 0; i < nDebugPCMWaves; i += 8)
+		LOGNOTE("PCM %3u: %08X %08X %08X %08X %08X %08X %08X %08X", i,
+			DebugPCMReference[i], DebugPCMReference[(i + 1) % nDebugPCMWaves],
+			DebugPCMReference[(i + 2) % nDebugPCMWaves], DebugPCMReference[(i + 3) % nDebugPCMWaves],
+			DebugPCMReference[(i + 4) % nDebugPCMWaves], DebugPCMReference[(i + 5) % nDebugPCMWaves],
+			DebugPCMReference[(i + 6) % nDebugPCMWaves], DebugPCMReference[(i + 7) % nDebugPCMWaves]);
+}
+
+static void DebugCheckPCM(MT32Emu::Synth* pSynth)
+{
+	unsigned int nChanged = 0;
+	for (unsigned int i = 0; i < nDebugPCMWaves; ++i)
+	{
+		const u32 nSum = pSynth->debugPCMWaveChecksum(i);
+		if (nSum != DebugPCMReference[i])
+		{
+			if (nChanged < 8)
+				LOGERR("PCM wave %u CHANGED: %08X -> %08X", i, DebugPCMReference[i], nSum);
+			++nChanged;
+		}
+	}
+
+	++nDebugPCMChecks;
+	if (nChanged)
+		LOGERR("PCM check %u: %u wave(s) CORRUPTED since startup", nDebugPCMChecks, nChanged);
+	else
+		LOGNOTE("PCM check %u: all %u waves OK (39 %08X, 42 %08X)", nDebugPCMChecks, nDebugPCMWaves,
+			nDebugPCMWaves > 39 ? pSynth->debugPCMWaveChecksum(39) : 0,
+			nDebugPCMWaves > 42 ? pSynth->debugPCMWaveChecksum(42) : 0);
+}
+
 // First 10 bytes of a timbre are its name
 static void DebugDescribeTimbre(const u8* pTimbre, char* pName)
 {
@@ -111,6 +157,10 @@ bool CMT32Synth::Initialize()
 
 	if (!m_pSynth->open(*m_pControlROMImage, *m_pPCMROMImage))
 		return false;
+
+#ifdef MIDI_DEBUG_CHANNEL
+	DebugCapturePCM(m_pSynth);
+#endif
 
 	m_pSynth->setOutputGain(m_nGain);
 	m_pSynth->setReverbOutputGain(m_nReverbGain);
@@ -249,6 +299,7 @@ void CMT32Synth::UpdateLCD(CLCD& LCD, unsigned int nTicks)
 	if (nTicks - nLastDebugTicks >= Utility::MillisToTicks(2000u))
 	{
 		nLastDebugTicks = nTicks;
+		DebugCheckPCM(m_pSynth);
 		u8 Channels[9];
 		m_pSynth->readMemory(MemoryAddressMIDIChannels, sizeof(Channels), Channels);
 		for (u8 nPart = 0; nPart < 8; ++nPart)
@@ -326,6 +377,9 @@ bool CMT32Synth::SwitchROMSet(TMT32ROMSet ROMSet)
 	m_Lock.Acquire();
 	m_pSynth->close();
 	assert(m_pSynth->open(*pControlROMImage, *pPCMROMImage));
+#ifdef MIDI_DEBUG_CHANNEL
+	DebugCapturePCM(m_pSynth);
+#endif
 	m_pSynth->setOutputGain(m_nGain);
 	m_pSynth->setReverbOutputGain(m_nReverbGain);
 	m_Lock.Release();

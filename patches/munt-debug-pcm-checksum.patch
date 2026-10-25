@@ -1,0 +1,41 @@
+diff --git a/mt32emu/src/Synth.cpp b/mt32emu/src/Synth.cpp
+index 257e45d3..d0e55fd2 100644
+--- a/mt32emu/src/Synth.cpp
++++ b/mt32emu/src/Synth.cpp
+@@ -2736,6 +2736,20 @@ bool Synth::isActive() {
+ 	return false;
+ }
+ 
++Bit32u Synth::debugPCMWaveCount() const {
++	return opened ? controlROMMap->pcmCount : 0;
++}
++
++Bit32u Synth::debugPCMWaveChecksum(Bit32u waveNum) const {
++	if (!opened || waveNum >= controlROMMap->pcmCount) return 0;
++	const PCMWaveEntry &wave = pcmWaves[waveNum];
++	Bit32u sum = 0;
++	for (Bit32u i = 0; i < wave.len && wave.addr + i < pcmROMSize; i++) {
++		sum = sum * 31 + Bit16u(pcmROMData[wave.addr + i]);
++	}
++	return sum;
++}
++
+ Bit32u Synth::getPartialCount() const {
+ 	return partialCount;
+ }
+diff --git a/mt32emu/src/Synth.h b/mt32emu/src/Synth.h
+index 38097200..f69a45c9 100644
+--- a/mt32emu/src/Synth.h
++++ b/mt32emu/src/Synth.h
+@@ -587,6 +587,11 @@ public:
+ 	// Returns the maximum number of partials playing simultaneously.
+ 	MT32EMU_EXPORT Bit32u getPartialCount() const;
+ 
++	// pim-32 debug builds only: checksum of PCM wave waveNum's decoded samples; 0 if out of range
++	MT32EMU_EXPORT Bit32u debugPCMWaveChecksum(Bit32u waveNum) const;
++	// pim-32 debug builds only: number of PCM waves in the PCM map
++	MT32EMU_EXPORT Bit32u debugPCMWaveCount() const;
++
+ 	// Fills in current states of all the parts into the array provided. The array must have at least 9 entries to fit values for all the parts.
+ 	// If the value returned for a part is true, there is at least one active non-releasing partial playing on this part.
+ 	// This info is useful in emulating behaviour of LCD display of the hardware units.

@@ -81,6 +81,7 @@ $(CIRCLESTDLIBHOME)/.done: $(CIRCLE_STDLIB_CONFIG)
 mt32emu: $(MT32EMUBUILDDIR)/.done
 
 $(MT32EMUBUILDDIR)/.done: $(CIRCLESTDLIBHOME)/.done
+	@${APPLY_PATCH} $(MT32EMUHOME)/.. patches/munt-debug-pcm-checksum.patch
 	@CFLAGS="$(CFLAGS_EXTERNAL)" \
 	CXXFLAGS="$(CFLAGS_EXTERNAL)" \
 	cmake -B $(MT32EMUBUILDDIR) \
@@ -161,6 +162,7 @@ mrproper: clean
 	@${REVERSE_PATCH} $(CIRCLEHOME) patches/circle-45-minimal-usb-drivers.patch
 	@${REVERSE_PATCH} $(FLUIDSYNTHHOME) patches/fluidsynth-2.3.1-circle.patch
 	@${REVERSE_PATCH} $(CIRCLESTDLIBHOME) patches/circle-stdlib-16-extra-newlib-cflags.patch
+	@${REVERSE_PATCH} $(MT32EMUHOME)/.. patches/munt-debug-pcm-checksum.patch
 
 # Clean circle-stdlib
 	@if [ -f $(CIRCLE_STDLIB_CONFIG) ]; then $(MAKE) -C $(CIRCLESTDLIBHOME) mrproper; fi
