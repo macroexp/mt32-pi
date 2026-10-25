@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Builds are back on Arm GNU Toolchain 11.3.rel1. The GCC 15 builds in 0.14.0 and 0.14.1 could fail to find ROMs or start a synth at boot, crash with a "sync failure", or leave some uploaded MT-32 instruments silent. The GCC 15 compatibility fixes stay in place so the toolchain can move forward again once Circle is updated.
+
 ## [0.14.1] - 2026-10-19
 
 ### Fixed
