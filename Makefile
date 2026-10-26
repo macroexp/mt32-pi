@@ -39,20 +39,13 @@ submodules:
 #
 $(CIRCLE_STDLIB_CONFIG) $(CIRCLE_CONFIG)&:
 	@echo "Configuring for Raspberry Pi $(RASPBERRYPI) ($(BITS) bit)"
-	@${APPLY_PATCH} $(CIRCLESTDLIBHOME) patches/circle-stdlib-16-extra-newlib-cflags.patch
-	EXTRA_CFLAGS_FOR_TARGET="$(NEWLIB_COMPAT_CFLAGS)" \
 	$(CIRCLESTDLIBHOME)/configure --raspberrypi=$(RASPBERRYPI) --prefix=$(PREFIX)
 
-# Apply patches
-	@${APPLY_PATCH} $(CIRCLEHOME) patches/circle-45-minimal-usb-drivers.patch
-	@${APPLY_PATCH} $(CIRCLEHOME) patches/circle-45-cp210x-remove-partnum-check.patch
-	@${APPLY_PATCH} $(CIRCLEHOME) patches/circle-45-gzip-kernel.patch
-	@${APPLY_PATCH} $(CIRCLEHOME) patches/circle-45-gcc13-hosted-cxx.patch
-
-ifeq ($(strip $(GC_SECTIONS)),1)
-# Enable function/data sections for circle-stdlib
-	@echo "CFLAGS_FOR_TARGET += -ffunction-sections -fdata-sections" >> $(CIRCLE_STDLIB_CONFIG)
-endif
+# Leave out USB drivers we don't use (replaces the old minimal-usb-drivers patch).
+# These guards are in Circle's lib/usb/usbdevicefactory.cpp (since Step 48) but
+# aren't documented upstream. USB MIDI, mass storage, serial and network stay in.
+	@echo "DEFINE += -DEXCLUDE_USB_KEYB -DEXCLUDE_USB_MOUSE -DEXCLUDE_USB_GAMEPAD" >> $(CIRCLE_CONFIG)
+	@echo "DEFINE += -DEXCLUDE_USB_PRINTER -DEXCLUDE_USB_BLUETOOTH -DEXCLUDE_USB_TOUCHSCREEN" >> $(CIRCLE_CONFIG)
 
 # Enable multi-core
 	@echo "DEFINE += -DARM_ALLOW_MULTI_CORE" >> $(CIRCLE_CONFIG)
@@ -147,7 +140,6 @@ all: circle-stdlib mt32emu fluidsynth
 #
 clean:
 # CHECK_DEPS=0: don't generate dependency files just to delete them
-# (fails noisily if the Circle patches have already been reversed)
 	@$(MAKE) -f Kernel.mk clean CHECK_DEPS=0
 
 #
@@ -155,12 +147,7 @@ clean:
 #
 mrproper: clean
 # Reverse patches
-	@${REVERSE_PATCH} $(CIRCLEHOME) patches/circle-45-gcc13-hosted-cxx.patch
-	@${REVERSE_PATCH} $(CIRCLEHOME) patches/circle-45-gzip-kernel.patch
-	@${REVERSE_PATCH} $(CIRCLEHOME) patches/circle-45-cp210x-remove-partnum-check.patch
-	@${REVERSE_PATCH} $(CIRCLEHOME) patches/circle-45-minimal-usb-drivers.patch
 	@${REVERSE_PATCH} $(FLUIDSYNTHHOME) patches/fluidsynth-2.3.1-circle.patch
-	@${REVERSE_PATCH} $(CIRCLESTDLIBHOME) patches/circle-stdlib-16-extra-newlib-cflags.patch
 
 # Clean circle-stdlib
 	@if [ -f $(CIRCLE_STDLIB_CONFIG) ]; then $(MAKE) -C $(CIRCLESTDLIBHOME) mrproper; fi

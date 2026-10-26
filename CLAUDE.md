@@ -7,8 +7,8 @@ pim-32 is a community continuation of [dwhinham/mt32-pi](https://github.com/dwhi
 ## Layout
 
 - `src/`, `include/`: mt32-pi itself. `src/synth/mt32synth.cpp` wraps Munt, `src/synth/soundfontsynth.cpp` wraps FluidSynth, `src/mt32pi.cpp` holds the audio, MIDI and UI tasks (one per core).
-- `external/`: submodules. `circle-stdlib` (v16, Circle Step 45), `munt` (libmt32emu 2.8.3), `fluidsynth` (~2.3.1), `inih` (r62).
-- `patches/`: local patches applied to submodules by the `Makefile` (`APPLY_PATCH`) and reversed by `make mrproper` (`REVERSE_PATCH`). Patch names carry the submodule version they apply to.
+- `external/`: submodules. `circle-stdlib` (v21, Circle Step 51.1.1, newlib 4.5.0), `munt` (libmt32emu 2.8.3), `fluidsynth` (~2.3.1), `inih` (r62).
+- `patches/`: local patches applied to submodules by the `Makefile` (`APPLY_PATCH`) and reversed by `make mrproper` (`REVERSE_PATCH`). Patch names carry the submodule version they apply to. Circle needs none since Step 51.1.1: unused USB drivers are left out with `EXCLUDE_USB_*` defines in the `Makefile`.
 - `Config.mk`, `Kernel.mk`, `Makefile`: build. `BOARD` is one of `pi2`, `pi3`, `pi3-64` (default; also Pi Zero 2 W), `pi4`, `pi4-64`.
 - `sdcard/`: files shipped on the SD card (`config.txt`, `mt32-pi.cfg`).
 - `scripts/`: user-facing updater/installer (Python, linted in CI). `scripts/dev/munt-ab/`: Munt A/B render and partial-report tools (see its README).
@@ -18,10 +18,11 @@ pim-32 is a community continuation of [dwhinham/mt32-pi](https://github.com/dwhi
 
 ```sh
 make BOARD=pi3-64            # kernel8.img; HDMI_CONSOLE=1 shows the log on HDMI
-make mrproper                # reverse patches, clean everything (do this before switching branches)
+make mrproper                # reverse patches, clean everything (do this before switching branches,
+                             # with the old branch still checked out)
 ```
 
-- **Toolchain: Arm GNU Toolchain 11.3.rel1** (`aarch64-none-elf` and `arm-none-eabi`). Do not move to GCC 13+ for releases yet: GCC 15 builds on Circle 45 caused boot failures (ROMs not found, synth init failing), "sync" exception crashes and silent SysEx-uploaded timbres on a Pi Zero 2 W, while GCC 11 builds of the same code are clean. The GCC 15 compatibility patches (`NEWLIB_COMPAT_CFLAGS`, `circle-stdlib-16-extra-newlib-cflags.patch`, `circle-45-gcc13-hosted-cxx.patch`) stay so the toolchain can move forward after the Circle upgrade, with a hardware soak test.
+- **Toolchain: Arm GNU Toolchain 11.3.rel1** (`aarch64-none-elf` and `arm-none-eabi`). Do not move to GCC 13+ for releases yet: GCC 15 builds on Circle 45 caused boot failures (ROMs not found, synth init failing), "sync" exception crashes and silent SysEx-uploaded timbres on a Pi Zero 2 W, while GCC 11 builds of the same code are clean. Circle 51.1.1 and circle-stdlib v21 build with GCC 15 without local patches (upstream recommends 15.2), so moving forward needs only a hardware soak test.
 - Munt is built with `-Ofast`. Offline renders show this is bit-for-bit close to `-O2` for Munt 2.7.0 and 2.8.3.
 - Each core's stack is 128 KB (`KERNEL_STACK_SIZE`), with no guard. Munt's `doRenderAndConvertStreams` frame is ~98 KB on the audio core, so keep large buffers off that stack.
 
