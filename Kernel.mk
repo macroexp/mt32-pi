@@ -52,6 +52,10 @@ include $(CIRCLEHOME)/Rules.mk
 
 CFLAGS		+=	-Werror -Wextra -Wno-unused-parameter
 
+# circle-stdlib v16 wrote these into Circle's Config.mk; v21 no longer does
+STDDEF_INCPATH	?=	$(shell $(PREFIX)gcc -print-file-name=include)
+CFLAGS		+=	-Wno-parentheses
+
 CFLAGS		+=	-I "$(NEWLIBDIR)/include" \
 			-I $(STDDEF_INCPATH) \
 			-isystem $(CIRCLESTDLIBHOME)/include \
