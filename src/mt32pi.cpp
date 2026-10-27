@@ -605,6 +605,24 @@ void CMT32Pi::AudioTask()
 	}
 }
 
+#if RASPPI >= 5
+void CMT32Pi::ControlTask()
+{
+	// Nothing for this core to do; bail out
+	if (!m_pControl)
+		return;
+
+	LOGNOTE("Control task on Core 3 starting up");
+
+	// Poll buttons/encoder at the rate the user timer interrupt uses on older boards
+	while (m_bRunning)
+	{
+		m_pControl->PollGPIOPins();
+		CTimer::SimpleusDelay(CControl::PollRateMicros);
+	}
+}
+#endif
+
 void CMT32Pi::Run(unsigned nCore)
 {
 	// Assign tasks to different CPU cores
@@ -618,6 +636,11 @@ void CMT32Pi::Run(unsigned nCore)
 
 		case 2:
 			return AudioTask();
+
+#if RASPPI >= 5
+		case 3:
+			return ControlTask();
+#endif
 
 		default:
 			break;
