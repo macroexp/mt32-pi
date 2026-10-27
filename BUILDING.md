@@ -46,6 +46,7 @@ The first build compiles Circle, newlib, Munt and FluidSynth and takes several m
 | --- | --- | --- | --- |
 | Pi Zero 2 W, Pi 3 (64-bit) | `pi3-64` (default) | `kernel8.img` | Yes |
 | Pi 4, Pi 400, CM4 (64-bit) | `pi4-64` | `kernel8-rpi4.img` | Yes |
+| Pi 5 (64-bit only; experimental) | `pi5-64` | `kernel_2712.img` | Yes |
 | Pi 2 | `pi2` | `kernel7.img` | Yes |
 | Pi 3 (32-bit) | `pi3` | `kernel8-32.img` | No |
 | Pi 4 (32-bit) | `pi4` | `kernel7l.img` | No |
