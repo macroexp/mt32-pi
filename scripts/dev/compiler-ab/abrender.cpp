@@ -3,7 +3,7 @@
 // GCC 15.2 builds of the same code can be compared bit for bit under QEMU.
 //
 //   abrender fluid <sf2> <mid> <out.f32> [nofx|noreverb|nochorus]
-//   abrender munt  <ctrl.rom> <pcm.rom> <mid> <out.f32> [setup.syx|setup.mid ...]
+//   abrender munt  <ctrl.rom> <pcm.rom> <mid> <out.f32> [setup.syx|setup.mid ...] [until=SECONDS] [solo=CHANNEL]
 //
 // Output: 48 kHz, interleaved stereo float32 (what mt32-pi's audio task gets).
 
@@ -259,14 +259,27 @@ static int MainMunt(int argc, char** argv)
 	uint32_t seq = 0;
 	std::vector<Event> ev;
 	double t0 = 0;
+	double until = -1;
+	int solo = 0;
 	for (int a = 6; a < argc; ++a)
 	{
+		if (!strncmp(argv[a], "until=", 6)) { until = atof(argv[a] + 6); continue; }
+		if (!strncmp(argv[a], "solo=", 5)) { solo = atoi(argv[a] + 5); continue; }
 		auto s = EndsWith(argv[a], ".mid") ? ParseSMF(ReadFile(argv[a]), seq) : ParseSyx(ReadFile(argv[a]), seq);
 		for (auto& e : s) { e.t += t0; ev.push_back(e); }
 		t0 = (ev.empty() ? t0 : ev.back().t) + 0.5;
 	}
 	auto mid = ParseSMF(ReadFile(argv[4]), seq);
-	for (auto& e : mid) { e.t += t0; ev.push_back(e); }
+	for (auto& e : mid)
+	{
+		// until=S: stop S seconds into the MIDI file (everything before it is still played)
+		if (until >= 0 && e.t > until) break;
+		// solo=N: drop note-ons on all MIDI channels but N (1-16); SysEx and controllers stay
+		if (solo && (e.data[0] & 0xF0) == 0x90 && (e.data[0] & 0x0F) != solo - 1) continue;
+		e.t += t0;
+		ev.push_back(e);
+	}
+	fprintf(stderr, "MIDI file starts %.3f s into the render\n", t0);
 
 	FILE* out = fopen(argv[5], "wb");
 	Run(ev, 3.0, out,

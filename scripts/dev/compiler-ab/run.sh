@@ -19,6 +19,8 @@ Usage: $0 [options]
   --control FILE    MT-32 control ROM   } both needed for the Munt render
   --pcm FILE        MT-32 PCM ROM       }
   --sysex FILE      setup sent to Munt before --midi (.syx or .mid); repeatable
+  --until SECONDS   Munt: stop this far into --midi (earlier events still play)
+  --solo CHANNEL    Munt: keep note-ons on this MIDI channel (1-16) only
   --work DIR        work directory (default ./compiler-ab-work)
 EOF
 	exit 1
@@ -33,6 +35,7 @@ MIDI=""
 CTRL=""
 PCM=""
 SYSEX=()
+MUNTOPTS=()
 WORK=$PWD/compiler-ab-work
 
 while [ $# -gt 0 ]; do
@@ -46,6 +49,8 @@ while [ $# -gt 0 ]; do
 	--control) CTRL=$(realpath "$2"); shift 2 ;;
 	--pcm) PCM=$(realpath "$2"); shift 2 ;;
 	--sysex) SYSEX+=("$(realpath "$2")"); shift 2 ;;
+	--until) MUNTOPTS+=("until=$2"); shift 2 ;;
+	--solo) MUNTOPTS+=("solo=$2"); shift 2 ;;
 	--work) WORK=$2; shift 2 ;;
 	*) usage ;;
 	esac
@@ -141,7 +146,8 @@ if [ -n "$CTRL" ] && [ -n "$PCM" ] && [ -n "$MIDI" ]; then
 		i=$((i + 1))
 	done
 	for d in "$A" "$B"; do
-		render "$d/abrender.elf" munt ctrl.rom pcm.rom munt.mid "$(basename "$d")-munt.f32" "${setup[@]}"
+		render "$d/abrender.elf" munt ctrl.rom pcm.rom munt.mid "$(basename "$d")-munt.f32" \
+			"${setup[@]}" "${MUNTOPTS[@]}"
 	done
 	echo "== Munt: $(basename "$A") vs $(basename "$B")"
 	python3 "$HERE/cmp_f32.py" "$(basename "$A")-munt.f32" "$(basename "$B")-munt.f32"
