@@ -58,8 +58,9 @@ jobs:
 
     # FluidSynth's CMake requires host glib via pkg-config even though the
     # Circle patch removes all glib usage; older runner images preinstalled it.
+    # newlib 4.5.0 (circle-stdlib v21) builds libgloss docs and needs makeinfo.
     - name: Install host build dependencies
-      run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libglib2.0-dev pkg-config
+      run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libglib2.0-dev pkg-config texinfo
 
     - name: Setup ccache
       uses: hendrikmuhs/ccache-action@v1.2.24
@@ -194,9 +195,15 @@ jobs:
       run: |
         mkdir -p sdcard/firmware
         make -C ${{ env.wlan-home }}/firmware
-        cp  ${{ env.wlan-home }}/firmware/LICENCE.broadcom_bcm43xx \
-            ${{ env.wlan-home }}/firmware/brcmfmac43430-sdio.bin \
+        # Since Circle Step 50 the firmware comes from RPi-Distro/firmware-nonfree's
+        # debian/config/brcm80211 tree, which has no standalone licence file; its
+        # licence terms are in debian/copyright at the same commit.
+        fw_commit=$(sed -n 's/^FIRMWARE ?= //p' ${{ env.wlan-home }}/firmware/Makefile)
+        curl -fsSL -o sdcard/firmware/LICENCE.firmware-nonfree \
+            "https://raw.githubusercontent.com/RPi-Distro/firmware-nonfree/${fw_commit}/debian/copyright"
+        cp  ${{ env.wlan-home }}/firmware/brcmfmac43430-sdio.bin \
             ${{ env.wlan-home }}/firmware/brcmfmac43430-sdio.txt \
+            ${{ env.wlan-home }}/firmware/brcmfmac43430-sdio.clm_blob \
             ${{ env.wlan-home }}/firmware/brcmfmac43436-sdio.bin \
             ${{ env.wlan-home }}/firmware/brcmfmac43436-sdio.txt \
             ${{ env.wlan-home }}/firmware/brcmfmac43436-sdio.clm_blob \

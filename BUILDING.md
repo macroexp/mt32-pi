@@ -7,14 +7,14 @@ pim-32 is a bare-metal kernel built on [Circle](https://github.com/rsta2/circle)
 ```sh
 sudo apt-get update
 sudo apt-get install -y build-essential git cmake make patch pkg-config \
-    libglib2.0-dev python3 curl xz-utils
+    libglib2.0-dev python3 curl xz-utils texinfo
 ```
 
 `libglib2.0-dev` is only there to satisfy FluidSynth's CMake configure check. Nothing from glib ends up in the kernel.
 
 ## 2. Install the Arm GNU Toolchain
 
-pim-32 is built with **Arm GNU Toolchain 11.3.rel1**. Newer toolchains (GCC 13 and later) also compile it, but GCC 15 builds have shown memory-corruption symptoms on the current Circle version, so stay on 11.3 for now. You need the `aarch64-none-elf` toolchain for 64-bit boards and `arm-none-eabi` for 32-bit boards; installing both is simplest.
+pim-32 is built with **Arm GNU Toolchain 11.3.rel1**. Newer toolchains (GCC 13 and later) also compile it, but GCC 15 builds showed memory-corruption symptoms on Circle Step 45 and haven't yet been soak-tested on the current Circle version (Step 51.1.1), so stay on 11.3 for now. You need the `aarch64-none-elf` toolchain for 64-bit boards and `arm-none-eabi` for 32-bit boards; installing both is simplest.
 
 ```sh
 VER=11.3.rel1
@@ -61,7 +61,7 @@ Pass these on the `make` command line, e.g. `make BOARD=pi4-64 HDMI_CONSOLE=1`:
 | Option | Default | Effect |
 | --- | --- | --- |
 | `HDMI_CONSOLE` | `0` | `1` sends the log to the HDMI output, useful for debugging |
-| `GZIP_KERNEL` | `1` | Compress the kernel image |
+| `GZIP_KERNEL` | `1` | Compress the kernel image (64-bit kernels only) |
 | `GC_SECTIONS` | `1` | Remove unused code and data at link time |
 
 ### Switching boards
@@ -81,6 +81,6 @@ The easiest way to get a bootable SD card is to download the latest release from
 
 ## Notes for contributors
 
-- Dependencies are git submodules under `external/`. Local fixes to them live in `patches/` and are applied automatically during the build; `make mrproper` reverses them.
+- Dependencies are git submodules under `external/`. Local fixes to them live in `patches/` and are applied automatically during the build; `make mrproper` reverses them. Run `make mrproper` *before* checking out a commit that changes a submodule or the patch list, so the old patches are reversed with the old `Makefile`; then `git submodule update`.
 - The project builds with `-Werror`, so new compiler warnings in `src/` or `include/` fail the build.
 - Python and shell scripts in `scripts/` are checked in CI with Black (`--preview`, pinned version), isort, flake8 and ShellCheck.
