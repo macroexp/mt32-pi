@@ -24,7 +24,7 @@ scripts/dev/compiler-ab/run.sh --control /roms/MT32_CONTROL.ROM --pcm /roms/MT32
 
 Options: `--old` / `--new` toolchain versions (default 11.3.rel1 and 15.2.rel1), `--toolchains DIR` where they are unpacked (default `$HOME`), `--opt FLAGS` to build both libraries with other optimisation flags (e.g. `-O2` as a reference), `--work DIR`. For Munt, `--until SECONDS` stops the render that far into the MIDI file (everything before it is still played, so long soundtracks can be cut to the passage of interest) and `--solo CHANNEL` keeps note-ons on one MIDI channel only, with SysEx and controllers intact. Builds are kept in the work directory and reused. To isolate FluidSynth's effects, run a renderer by hand with a fifth argument `nofx`, `noreverb` or `nochorus` (see the top of `abrender.cpp`).
 
-Renders are 48 kHz stereo float32 with mt32-pi's default settings (Munt: gain 1.0, GOOD resampler; FluidSynth: FDN reverb and chorus as in `config.def`, polyphony 200, gain 0.2). Each event is sent at the sample position of its MIDI time. `cmp_f32.py` prints the share of identical samples, the first difference, peak and RMS difference in dBFS, and the five seconds where the difference is largest relative to the signal.
+Renders are 48 kHz stereo float32 with mt32-pi's default settings (Munt: gain 1.0, GOOD resampler; FluidSynth: FDN reverb and chorus as in `config.def`, polyphony 200, gain 0.2). Each event is sent at the sample position of its MIDI time. `cmp_f32.py` reads the renders a second at a time, so full-length soundtracks fit in memory, and prints the share of identical samples, the first difference, peak and RMS difference in dBFS, and the five seconds where the difference is largest relative to the signal.
 
 ## Reading the result
 
@@ -43,4 +43,4 @@ Phase 4.5 results (FluidSynth 2.6.1, GeneralUser GS 2.0.3, generated file, 51 s)
 
 The reverb difference is GCC 11.3's `-Ofast` code drifting from the exact result; GCC 15.2's stays close to it.
 
-Munt, Laura Bow 2 (`AMONRA.SYX` then `LB2MT.MID`, MT-32 v1.07 ROM, first 455 s of the music, through measure 188), GCC 11.3 vs 15.2 with `-Ofast`: maximum difference −124 dBFS, RMS −154 dBFS. Channel 6 alone (`--solo 6`, part 5 playing the uploaded timbre M09 "BanjoLB2" from measure 164) is audible in both builds, about −33 to −39 dBFS per measure, matching to 0.1 dB.
+Munt, Laura Bow 2 (`AMONRA.SYX` then `LB2MT.MID`, the whole 102-minute soundtrack), GCC 11.3 vs 15.2 with `-Ofast`, MT-32 v1.07 ROM: maximum difference −120 dBFS, RMS −156 dBFS; in every second the difference is at least 128 dB below the music. The first 455 s (through measure 188) with the MT-32 v2.04 and CM-32L v1.02 ROMs: maximum −124 dBFS. Channel 6 alone (`--solo 6`; part 5, which plays the uploaded timbre M09 "BanjoLB2" from measure 164) is audible in both builds, about −33 to −39 dBFS per measure, matching to 0.1 dB.
