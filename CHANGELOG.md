@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Release builds now use Arm GNU Toolchain 15.2.rel1 (GCC 15.2), the version the Circle framework recommends, instead of 11.3.rel1. To build from source, install 15.2.rel1 (see `BUILDING.md`).
+
 ## [0.16.1] - 2026-10-27
 
 ### Changed

@@ -12,10 +12,10 @@ sudo apt-get install -y build-essential git cmake make patch pkg-config \
 
 ## 2. Install the Arm GNU Toolchain
 
-pim-32 is built with **Arm GNU Toolchain 11.3.rel1**. Newer toolchains (GCC 13 and later) also compile it, but GCC 15 builds showed memory-corruption symptoms on Circle Step 45 and haven't yet been soak-tested on the current Circle version (Step 51.1.1), so stay on 11.3 for now. You need the `aarch64-none-elf` toolchain for 64-bit boards and `arm-none-eabi` for 32-bit boards; installing both is simplest.
+pim-32 is built with **Arm GNU Toolchain 15.2.rel1**, the version Circle recommends and is tested with. Older toolchains may still compile it, but releases are built and tested with 15.2.rel1 only. You need the `aarch64-none-elf` toolchain for 64-bit boards and `arm-none-eabi` for 32-bit boards; installing both is simplest.
 
 ```sh
-VER=11.3.rel1
+VER=15.2.rel1
 for TRIPLET in aarch64-none-elf arm-none-eabi; do
     curl -fsSL "https://developer.arm.com/-/media/Files/downloads/gnu/$VER/binrel/arm-gnu-toolchain-$VER-x86_64-$TRIPLET.tar.xz" \
         | tar -xJ -C "$HOME"
