@@ -193,6 +193,33 @@ index b4137b3d..451efd9a 100644
  
  fluid_long_long_t fluid_file_tell(FILE* f)
  {
+diff --git a/src/utils/fluid_sys_embedded.h b/src/utils/fluid_sys_embedded.h
+index be7ee9cf..8f6cc268 100644
+--- a/src/utils/fluid_sys_embedded.h
++++ b/src/utils/fluid_sys_embedded.h
+@@ -224,13 +224,22 @@ STUB_FUNCTION_VOID_SILENT(fluid_thread_self_set_prio, (int prio_level))
+ 
+ 
+ /* File access */
++#if 0
+ typedef struct {
+     #undef st_mtime
+     int st_mtime;
+ } fluid_stat_buf_t;
++#endif
+ 
+ STUB_FUNCTION(fluid_file_test, bool, true, (const char *path, int flags))
++#if 0
+ STUB_FUNCTION(fluid_stat, int, -1, (const char *path, fluid_stat_buf_t *buffer))
++#endif
++
++/* circle-stdlib's newlib implements stat() on top of FatFs; the sample cache uses it for file mtimes */
++#include <sys/stat.h>
++typedef struct stat fluid_stat_buf_t;
++#define fluid_stat(_filename, _statbuf)   stat((_filename), (_statbuf))
+ 
+ 
+ /* Debug functions */
 diff --git a/src/utils/fluidsynth_priv.h b/src/utils/fluidsynth_priv.h
 index 11f91159..c5a15ebe 100644
 --- a/src/utils/fluidsynth_priv.h
