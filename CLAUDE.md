@@ -40,7 +40,7 @@ make mrproper                # reverse patches, clean everything (do this before
 
 ## Testing
 
-- **Hardware (maintainer):** Pi Zero 2 W, FiiO Taishan I²S DAC, SSD1306 I²C OLED, simple buttons, HDMI monitor for `HDMI_CONSOLE=1` builds. `mt32-pi.cfg`: I²S, chunk_size 256, Wi-Fi on, RTP and UDP MIDI on, USB off, rom_set old (MT-32 v1.x ROM), verbose on. MIDI comes from Cakewalk on a PC. The maintainer has SD cards with stock 0.13.1 for comparison and can record audio.
+- **Hardware (maintainer):** Pi Zero 2 W and Pi 5 (8 or 16 GB), each with a ClumsyMIDI HAT (I²S DAC, SSD1306 I²C OLED, GPIO MIDI), simple buttons, HDMI monitor with speakers (also for `HDMI_CONSOLE=1` builds), Ethernet and USB MIDI adapters. No rotary encoder, Pisound or MiSTer. `mt32-pi.cfg`: I²S, chunk_size 256, Wi-Fi on, RTP and UDP MIDI on, USB off, rom_set old (MT-32 v1.x ROM), verbose on. MIDI comes from Cakewalk on a PC. The maintainer has SD cards with stock 0.13.1 for comparison and can record audio.
 - **Regression test:** Laura Bow 2 (Sierra). Send the setup `AMONRA.SYX`, then play `LB2MT.MID`. Part 5 (MIDI ch 6) uses the uploaded timbre M09 "BanjoLB2"; measures 164-188 are a good dense/sparse stretch. These files are Sierra's and aren't in the repo; ask the maintainer to attach them.
 - **Munt changes:** run `scripts/dev/munt-ab/run.sh` (renders old vs new with the maintainer's ROMs; `--report`, `--solo`, `--sysex`).
 - **Toolchain changes:** run `scripts/dev/compiler-ab/run.sh` (needs `qemu-system-aarch64`; `--sf2` for FluidSynth, `--control`/`--pcm`/`--sysex`/`--midi` for Munt, `--until` and `--solo` to cut long files). For v0.17.0, GCC 11.3 and 15.2 renders of the whole Laura Bow 2 soundtrack differed by at most -120 dBFS.
