@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-10-27
+
 ### Changed
 
 - Updated FluidSynth (SoundFont synthesizer) from 2.3.1 to 2.6.1. Reverb keeps the previous algorithm, so existing effect settings and per-SoundFont profiles still apply. Other changes come from FluidSynth itself: more accurate SoundFont modulators and envelopes, sample fine-tuning fixed for some instruments, portamento applies to all notes, better handling of GS/XG drum kit selection and NRPNs, and several crash and security fixes in SoundFont loading.
+- Building from source no longer needs `libglib2.0-dev`. In an existing build tree, run `make mrproper` before pulling this version.
+
+## [0.16.0] - 2026-10-27
+
+### Changed
+
+- Updated the Circle framework from Step 45.1 to Step 51.1.1 (circle-stdlib v21, newlib 4.5.0). This brings Circle's current drivers, including its USB, Wi-Fi, I²S and PWM audio support, and replaces all of pim-32's local Circle patches.
+- `config.txt` now sets `initial_turbo=0`, as Circle recommends. Newer Raspberry Pi firmware otherwise boosts the clock for the first 60 seconds after boot, which can disturb device setup. If you update by copying files, copy the new `config.txt` too.
+- The release package includes the `brcmfmac43430-sdio.clm_blob` Wi-Fi firmware file, which Circle now loads on the Pi 3B and Pi Zero W.
+- Building from source now needs `texinfo`. In an existing build tree, run `make mrproper` before pulling this version (see `BUILDING.md`).
 
 ## [0.15.0] - 2026-10-25
 
@@ -591,7 +603,9 @@ First release of **pim-32**, a community-maintained continuation of [mt32-pi](ht
 
 - Initial version.
 
-[unreleased]: https://github.com/macroexp/mt32-pi/compare/v0.15.0..HEAD
+[unreleased]: https://github.com/macroexp/mt32-pi/compare/v0.16.1..HEAD
+[0.16.1]: https://github.com/macroexp/mt32-pi/compare/v0.16.0..v0.16.1
+[0.16.0]: https://github.com/macroexp/mt32-pi/compare/v0.15.0..v0.16.0
 [0.15.0]: https://github.com/macroexp/mt32-pi/compare/v0.14.2..v0.15.0
 [0.14.2]: https://github.com/macroexp/mt32-pi/compare/v0.14.1..v0.14.2
 [0.14.1]: https://github.com/macroexp/mt32-pi/compare/v0.14.0..v0.14.1
