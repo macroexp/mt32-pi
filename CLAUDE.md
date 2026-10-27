@@ -11,7 +11,7 @@ pim-32 is a community continuation of [dwhinham/mt32-pi](https://github.com/dwhi
 - `patches/`: local patches applied to submodules by the `Makefile` (`APPLY_PATCH`) and reversed by `make mrproper` (`REVERSE_PATCH`). Patch names carry the submodule version they apply to. Circle needs none since Step 51.1.1: unused USB drivers are left out with `EXCLUDE_USB_*` defines in the `Makefile`.
 - `Config.mk`, `Kernel.mk`, `Makefile`: build. `BOARD` is one of `pi2`, `pi3`, `pi3-64` (default; also Pi Zero 2 W), `pi4`, `pi4-64`.
 - `sdcard/`: files shipped on the SD card (`config.txt`, `mt32-pi.cfg`).
-- `scripts/`: user-facing updater/installer (Python, linted in CI). `scripts/dev/munt-ab/`: Munt A/B render and partial-report tools (see its README).
+- `scripts/`: user-facing updater/installer (Python, linted in CI). `scripts/dev/munt-ab/`: Munt A/B render and partial-report tools. `scripts/dev/compiler-ab/`: renders Munt and FluidSynth built with two toolchains under QEMU and compares them (see each README).
 - `BUILDING.md`: local build setup, including the toolchain download.
 
 ## Build
@@ -43,6 +43,7 @@ make mrproper                # reverse patches, clean everything (do this before
 - **Hardware (maintainer):** Pi Zero 2 W, FiiO Taishan I²S DAC, SSD1306 I²C OLED, simple buttons, HDMI monitor for `HDMI_CONSOLE=1` builds. `mt32-pi.cfg`: I²S, chunk_size 256, Wi-Fi on, RTP and UDP MIDI on, USB off, rom_set old (MT-32 v1.x ROM), verbose on. MIDI comes from Cakewalk on a PC. The maintainer has SD cards with stock 0.13.1 for comparison and can record audio.
 - **Regression test:** Laura Bow 2 (Sierra). Send the setup `AMONRA.SYX`, then play `LB2MT.MID`. Part 5 (MIDI ch 6) uses the uploaded timbre M09 "BanjoLB2"; measures 164-188 are a good dense/sparse stretch. These files are Sierra's and aren't in the repo; ask the maintainer to attach them.
 - **Munt changes:** run `scripts/dev/munt-ab/run.sh` (renders old vs new with the maintainer's ROMs; `--report`, `--solo`, `--sysex`).
+- **Toolchain changes:** run `scripts/dev/compiler-ab/run.sh` (needs `qemu-system-aarch64`; `--sf2` for FluidSynth, `--control`/`--pcm`/`--sysex`/`--midi` for Munt, `--until` and `--solo` to cut long files). For v0.17.0, GCC 11.3 and 15.2 renders of the whole Laura Bow 2 soundtrack differed by at most -120 dBFS.
 - **Debug kernels:** branch `debug-midi-log` (never merge it) adds `MIDI_DEBUG_CHANNEL=N` logging, timbre checksums and PCM checksums. Its heavy HDMI logging disturbs audio and causes audible distortion, so never judge sound quality on a debug kernel.
 - Always hand the maintainer builds that differ from a known-good build in exactly one respect, and state what that respect is.
 
