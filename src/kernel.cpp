@@ -30,7 +30,13 @@
 CKernel::CKernel(void)
 	: CStdlibApp("mt32-pi"),
 
+#if RASPPI >= 5
+	  // No FIQ on the Pi 5, and the default UART there is the debug connector,
+	  // so ask for UART0 (GPIO 14/15, "ttyS1" as on other boards) on the IRQ
+	  m_Serial(&mInterrupt, false, 0),
+#else
 	  m_Serial(&mInterrupt, true),
+#endif
 #ifdef HDMI_CONSOLE
 	  m_Screen(mOptions.GetWidth(), mOptions.GetHeight()),
 #endif
