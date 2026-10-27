@@ -122,7 +122,13 @@ bool CMT32Synth::Initialize()
 
 void CMT32Synth::HandleMIDIShortMessage(u32 nMessage)
 {
-	if (!m_pSynth->playMsg(nMessage))
+	// MIDI arrives on core 0 while Render() runs on core 2. mt32emu's MIDI queue only uses
+	// volatile, which orders nothing between cores on ARM, so take the lock like Render() does.
+	m_Lock.Acquire();
+	const bool bAccepted = m_pSynth->playMsg(nMessage);
+	m_Lock.Release();
+
+	if (!bAccepted)
 		LOGWARN("mt32emu rejected MIDI message %06X", static_cast<unsigned int>(nMessage));
 
 	// Update MIDI monitor
@@ -131,15 +137,21 @@ void CMT32Synth::HandleMIDIShortMessage(u32 nMessage)
 
 void CMT32Synth::HandleMIDISysExMessage(const u8* pData, size_t nSize)
 {
-	if (!m_pSynth->playSysex(pData, nSize))
+	m_Lock.Acquire();
+	const bool bAccepted = m_pSynth->playSysex(pData, nSize);
+	m_Lock.Release();
+
+	if (!bAccepted)
 		LOGWARN("mt32emu rejected SysEx message (%u bytes)", static_cast<unsigned int>(nSize));
 }
 
 void CMT32Synth::AllSoundOff()
 {
 	// Stop all sound immediately; mt32emu treats CC 0x7C like "All Sound Off", ignoring pedal
+	m_Lock.Acquire();
 	for (u8 i = 0; i < 8; ++i)
 		m_pSynth->playMsgOnPart(i, 0x0B, 0x7C, 0);
+	m_Lock.Release();
 
 	// Reset MIDI monitor
 	CSynthBase::AllSoundOff();
@@ -148,7 +160,9 @@ void CMT32Synth::AllSoundOff()
 void CMT32Synth::SetMasterVolume(u8 nVolume)
 {
 	const u8 SetVolumeSysEx[] = { 0x10, 0x00, 0x16, nVolume };
+	m_Lock.Acquire();
 	m_pSynth->writeSysex(0x10, SetVolumeSysEx, sizeof(SetVolumeSysEx));
+	m_Lock.Release();
 }
 
 size_t CMT32Synth::Render(s16* pOutBuffer, size_t nFrames)
@@ -220,10 +234,12 @@ void CMT32Synth::UpdateLCD(CLCD& LCD, unsigned int nTicks)
 
 void CMT32Synth::SetMIDIChannels(TMIDIChannels Channels)
 {
+	m_Lock.Acquire();
 	if (Channels == TMIDIChannels::Standard)
 		m_pSynth->writeSysex(0x10, StandardMIDIChannelsSysEx, sizeof(StandardMIDIChannelsSysEx));
 	else
 		m_pSynth->writeSysex(0x10, AlternateMIDIChannelsSysEx, sizeof(AlternateMIDIChannelsSysEx));
+	m_Lock.Release();
 }
 
 bool CMT32Synth::SwitchROMSet(TMT32ROMSet ROMSet)
