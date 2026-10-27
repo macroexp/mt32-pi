@@ -139,6 +139,12 @@ jobs:
           sdcard/bcm2711-rpi-4-b.dtb
           sdcard/bcm2711-rpi-400.dtb
           sdcard/bcm2711-rpi-cm4.dtb
+          sdcard/bcm2712-rpi-5-b.dtb
+          sdcard/bcm2712d0-rpi-5-b.dtb
+          sdcard/bcm2712-rpi-500.dtb
+          sdcard/bcm2712-rpi-cm5-cm5io.dtb
+          sdcard/bcm2712-rpi-cm5l-cm5io.dtb
+          sdcard/overlays/bcm2712d0.dtbo
           sdcard/bootcode.bin
           sdcard/COPYING.linux
           sdcard/fixup_cd.dat
@@ -146,7 +152,8 @@ jobs:
           sdcard/LICENCE.broadcom
           sdcard/start_cd.elf
           sdcard/start4cd.elf
-        key: cache-boot-files-${{ hashFiles(join(env.boot-home, '/Makefile')) }}
+        # Bump the suffix when the file list above changes, or a stale cache hit skips new files
+        key: cache-boot-files-v2-${{ hashFiles(join(env.boot-home, '/Makefile')) }}
 
     - name: Cache WLAN firmware
       id: cache-wlan-firmware
@@ -179,6 +186,11 @@ jobs:
             ${{ env.boot-home }}/bcm2711-rpi-4-b.dtb \
             ${{ env.boot-home }}/bcm2711-rpi-400.dtb \
             ${{ env.boot-home }}/bcm2711-rpi-cm4.dtb \
+            ${{ env.boot-home }}/bcm2712-rpi-5-b.dtb \
+            ${{ env.boot-home }}/bcm2712d0-rpi-5-b.dtb \
+            ${{ env.boot-home }}/bcm2712-rpi-500.dtb \
+            ${{ env.boot-home }}/bcm2712-rpi-cm5-cm5io.dtb \
+            ${{ env.boot-home }}/bcm2712-rpi-cm5l-cm5io.dtb \
             ${{ env.boot-home }}/bootcode.bin \
             ${{ env.boot-home }}/COPYING.linux \
             ${{ env.boot-home }}/fixup_cd.dat \
@@ -187,6 +199,9 @@ jobs:
             ${{ env.boot-home }}/start_cd.elf \
             ${{ env.boot-home }}/start4cd.elf \
             sdcard
+        # Pi 5 (BCM2712 D0 stepping) needs this overlay; firmware is in its EEPROM
+        mkdir -p sdcard/overlays
+        cp ${{ env.boot-home }}/bcm2712d0.dtbo sdcard/overlays
 
     - name: Download WLAN firmware if not retrieved from cache
       if: steps.cache-wlan-firmware.outputs.cache-hit != 'true'
