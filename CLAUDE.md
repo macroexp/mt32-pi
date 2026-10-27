@@ -22,7 +22,7 @@ make mrproper                # reverse patches, clean everything (do this before
                              # with the old branch still checked out)
 ```
 
-- **Toolchain: Arm GNU Toolchain 11.3.rel1** (`aarch64-none-elf` and `arm-none-eabi`). Do not move to GCC 13+ for releases yet: GCC 15 builds on Circle 45 caused boot failures (ROMs not found, synth init failing), "sync" exception crashes and silent SysEx-uploaded timbres on a Pi Zero 2 W, while GCC 11 builds of the same code are clean. Circle 51.1.1 and circle-stdlib v21 build with GCC 15 without local patches (upstream recommends 15.2), so moving forward needs only a hardware soak test.
+- **Toolchain: Arm GNU Toolchain 15.2.rel1** (`aarch64-none-elf` and `arm-none-eabi`), as Circle 51.1.1 recommends. Releases up to 0.16.1 used 11.3.rel1 because GCC 15 builds on Circle 45 caused boot failures (ROMs not found, synth init failing), "sync" exception crashes and silent SysEx-uploaded timbres on a Pi Zero 2 W. Phase 4.5 moved to 15.2 after a hardware soak test; if those symptoms come back, compare against an 11.3.rel1 build of the same commit first.
 - Munt is built with `-Ofast`. Offline renders show this is bit-for-bit close to `-O2` for Munt 2.7.0 and 2.8.3.
 - Each core's stack is 128 KB (`KERNEL_STACK_SIZE`), with no guard. Munt's `doRenderAndConvertStreams` frame is ~98 KB on the audio core, so keep large buffers off that stack.
 
