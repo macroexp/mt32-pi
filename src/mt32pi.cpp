@@ -581,12 +581,48 @@ void CMT32Pi::AudioTask()
 	float FloatBuffer[nQueueSizeFrames * nChannels];
 	s8 IntBuffer[nQueueSizeFrames * nBytesPerFrame + (bI2S ? 0 : 1)];
 
+	// Render timing (debug branch pi5-render-timing, never merge): every 5 seconds,
+	// log the worst and mean render time as a share of the real-time budget
+	const unsigned int nSampleRate = m_pConfig->AudioSampleRate;
+	unsigned int nTimingStart = CTimer::GetClockTicks();
+	u64 nRenderMicros = 0, nRenderFrames = 0;
+	unsigned int nWorstPermille = 0, nWorstFrames = 0, nCalls = 0;
+
 	while (m_bRunning)
 	{
 		const size_t nFrames = nQueueSizeFrames - m_pSound->GetQueueFramesAvail();
 		const size_t nWriteBytes = nFrames * nBytesPerFrame;
 
+		const unsigned int nRenderStart = CTimer::GetClockTicks();
 		m_pCurrentSynth->Render(FloatBuffer, nFrames);
+		const unsigned int nRenderEnd = CTimer::GetClockTicks();
+
+		if (nFrames > 0)
+		{
+			const unsigned int nMicros = nRenderEnd - nRenderStart;
+			const unsigned int nBudgetMicros = static_cast<u64>(nFrames) * 1000000 / nSampleRate;
+			const unsigned int nPermille = nBudgetMicros ? static_cast<u64>(nMicros) * 1000 / nBudgetMicros : 0;
+			if (nPermille > nWorstPermille)
+			{
+				nWorstPermille = nPermille;
+				nWorstFrames = nFrames;
+			}
+			nRenderMicros += nMicros;
+			nRenderFrames += nFrames;
+			++nCalls;
+		}
+
+		if (nRenderEnd - nTimingStart >= 5000000)
+		{
+			const unsigned int nMeanPermille = nRenderFrames ? nRenderMicros * nSampleRate / nRenderFrames / 1000 : 0;
+			LOGNOTE("Render %s: worst %u.%u%% of budget (%u frames), mean %u.%u%%, %u calls",
+				m_pCurrentSynth == m_pMT32Synth ? "MT-32" : "SoundFont",
+				nWorstPermille / 10, nWorstPermille % 10, nWorstFrames,
+				nMeanPermille / 10, nMeanPermille % 10, nCalls);
+			nTimingStart = nRenderEnd;
+			nRenderMicros = nRenderFrames = 0;
+			nWorstPermille = nWorstFrames = nCalls = 0;
+		}
 
 		if (bReversedStereo)
 		{
