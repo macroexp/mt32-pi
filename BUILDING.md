@@ -7,10 +7,8 @@ pim-32 is a bare-metal kernel built on [Circle](https://github.com/rsta2/circle)
 ```sh
 sudo apt-get update
 sudo apt-get install -y build-essential git cmake make patch pkg-config \
-    libglib2.0-dev python3 curl xz-utils texinfo
+    python3 curl xz-utils texinfo
 ```
-
-`libglib2.0-dev` is only there to satisfy FluidSynth's CMake configure check. Nothing from glib ends up in the kernel.
 
 ## 2. Install the Arm GNU Toolchain
 
