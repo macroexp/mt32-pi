@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated FluidSynth (SoundFont synthesizer) from 2.3.1 to 2.6.1. Reverb keeps the previous algorithm, so existing effect settings and per-SoundFont profiles still apply. Other changes come from FluidSynth itself: more accurate SoundFont modulators and envelopes, sample fine-tuning fixed for some instruments, portamento applies to all notes, better handling of GS/XG drum kit selection and NRPNs, and several crash and security fixes in SoundFont loading.
+
 ## [0.15.0] - 2026-10-25
 
 ### Added
