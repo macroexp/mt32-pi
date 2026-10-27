@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-27
+
+### Added
+
+- Tools for comparing compiler toolchains, in `scripts/dev/compiler-ab`: they render the same MIDI through Munt and FluidSynth built with two toolchains and compare the output sample by sample.
+
 ### Changed
 
-- Release builds now use Arm GNU Toolchain 15.2.rel1 (GCC 15.2), the version the Circle framework recommends, instead of 11.3.rel1. To build from source, install 15.2.rel1 (see `BUILDING.md`).
+- Release builds now use Arm GNU Toolchain 15.2.rel1 (GCC 15.2), the version the Circle framework recommends, instead of 11.3.rel1. Offline renders of Munt and FluidSynth match the 11.3 builds, and a Pi Zero 2 W soak test (repeated cold boots, Laura Bow 2, SoundFont playback, Wi-Fi/RTP MIDI) passed. To build from source, install 15.2.rel1 (see `BUILDING.md`).
+- If an MT-32 ROM file can't be read completely, or doesn't match any known ROM, the log now says so instead of the ROM silently going missing.
+
+### Fixed
+
+- SoundFont mode: memory could be corrupted when FluidSynth resized one of its buffers (for example its voice list when polyphony changes), which could crash or hang the synth.
+- MT-32 mode: MIDI and SysEx messages are now handed to Munt safely while it renders on another CPU core. Before, a SysEx message, such as a game uploading its own instruments, could occasionally be processed before all of its data had arrived.
 
 ## [0.16.1] - 2026-10-27
 
@@ -608,6 +620,7 @@ First release of **pim-32**, a community-maintained continuation of [mt32-pi](ht
 - Initial version.
 
 [unreleased]: https://github.com/macroexp/mt32-pi/compare/v0.16.1..HEAD
+[0.17.0]: https://github.com/macroexp/mt32-pi/compare/v0.16.1..v0.17.0
 [0.16.1]: https://github.com/macroexp/mt32-pi/compare/v0.16.0..v0.16.1
 [0.16.0]: https://github.com/macroexp/mt32-pi/compare/v0.15.0..v0.16.0
 [0.15.0]: https://github.com/macroexp/mt32-pi/compare/v0.14.2..v0.15.0
