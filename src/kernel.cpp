@@ -99,7 +99,14 @@ bool CKernel::Initialize(void)
 	if (bSerialMIDIAvailable && !m_Serial.Initialize(m_Config.MIDIGPIOBaudRate))
 		return false;
 
-	// Init I2C; don't bother with Initialize() as it only sets the clock to 100/400KHz
+#if RASPPI >= 5
+	// The Pi 5's RP1 I2C controller (DesignWare) must be disabled before it is
+	// configured, and Initialize() also sets up its FIFO thresholds
+	if (!m_I2CMaster.Initialize())
+		m_Logger.Write(GetKernelName(), LogWarning, "Failed to initialize I2C");
+#endif
+
+	// Init I2C; on Pi 1-4 don't bother with Initialize() as it only sets the clock to 100/400KHz
 	m_I2CMaster.SetClock(m_Config.SystemI2CBaudRate);
 
 	// Init SPI
