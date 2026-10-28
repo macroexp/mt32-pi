@@ -52,6 +52,12 @@ bool CControl::Initialize()
 		return false;
 
 	m_Timer.Start(PollRateMicros);
+#else
+	// Polling only starts with the other cores, at the same time as the main task's
+	// first Update(), so fill the debounce history with the current pin states now;
+	// otherwise its initial zeros read as every button pressed at once
+	for (size_t i = 0; i < ButtonStateHistoryLength; ++i)
+		ReadGPIOPins();
 #endif
 
 	return true;
