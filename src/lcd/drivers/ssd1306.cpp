@@ -22,6 +22,8 @@
 
 #include <type_traits>
 
+#include <circle/logger.h>
+
 #include "lcd/drivers/ssd1306.h"
 #include "lcd/font6x8.h"
 #include "lcd/images.h"
@@ -217,7 +219,15 @@ bool CSSD1306::Initialize()
 void CSSD1306::WriteCommand(u8 nCommand) const
 {
 	const u8 Buffer[] = { 0x80, nCommand };
-	m_pI2CMaster->Write(m_nAddress, Buffer, sizeof(Buffer));
+	const int nResult = m_pI2CMaster->Write(m_nAddress, Buffer, sizeof(Buffer));
+
+	// Debug (branch pi5-i2c-scan, never merge)
+	static unsigned nCommands = 0, nFailures = 0;
+	++nCommands;
+	if (nResult != sizeof(Buffer) && ++nFailures <= 20)
+		CLogger::Get()->Write("ssd1306", LogNotice, "command #%u 0x%02X returned %d", nCommands, nCommand, nResult);
+	else if (nCommands <= 3)
+		CLogger::Get()->Write("ssd1306", LogNotice, "command #%u 0x%02X OK", nCommands, nCommand);
 }
 
 void CSSD1306::WriteFrameBuffer(bool bForceFullUpdate) const
@@ -231,7 +241,18 @@ void CSSD1306::WriteFrameBuffer(bool bForceFullUpdate) const
 
 	// Copy entire framebuffer
 	if (bNeedsUpdate)
-		m_pI2CMaster->Write(m_nAddress, &m_FrameBuffers[m_nCurrentFrameBuffer], sizeof(TFrameBufferUpdatePacket::DataControlByte) + nFrameBufferSize);
+	{
+		const unsigned nSize = sizeof(TFrameBufferUpdatePacket::DataControlByte) + nFrameBufferSize;
+		const int nResult = m_pI2CMaster->Write(m_nAddress, &m_FrameBuffers[m_nCurrentFrameBuffer], nSize);
+
+		// Debug (branch pi5-i2c-scan, never merge)
+		static unsigned nWrites = 0, nFailures = 0;
+		++nWrites;
+		if (nResult != static_cast<int>(nSize) && ++nFailures <= 20)
+			CLogger::Get()->Write("ssd1306", LogNotice, "frame write #%u (%u bytes) returned %d", nWrites, nSize, nResult);
+		else if (nWrites <= 3)
+			CLogger::Get()->Write("ssd1306", LogNotice, "frame write #%u (%u bytes) OK", nWrites, nSize);
+	}
 }
 
 void CSSD1306::SwapFrameBuffers()
