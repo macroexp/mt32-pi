@@ -109,6 +109,38 @@ bool CKernel::Initialize(void)
 	// Init I2C; on Pi 1-4 don't bother with Initialize() as it only sets the clock to 100/400KHz
 	m_I2CMaster.SetClock(m_Config.SystemI2CBaudRate);
 
+	// Debug (branch pi5-i2c-scan, never merge): scan the I2C bus and log what answers
+	{
+		const char* pName = GetKernelName();
+		m_Logger.Write(pName, LogNotice, "I2C scan at %u Hz (bus 1, GPIO 2/3)", m_Config.SystemI2CBaudRate);
+		unsigned nFound = 0, nErrors = 0;
+		for (u8 nAddress = 0x08; nAddress <= 0x77; ++nAddress)
+		{
+			u8 nByte;
+			const int nResult = m_I2CMaster.Read(nAddress, &nByte, 1);
+			if (nResult >= 0)
+			{
+				m_Logger.Write(pName, LogNotice, "I2C: device at 0x%02X (read %d)", nAddress, nResult);
+				++nFound;
+			}
+			else if (nResult != -2)
+			{
+				m_Logger.Write(pName, LogNotice, "I2C: 0x%02X error %d", nAddress, nResult);
+				// Timeouts take 0.5 s each; don't stall the boot for a minute
+				if (++nErrors >= 5)
+				{
+					m_Logger.Write(pName, LogNotice, "I2C: too many errors, scan stopped");
+					break;
+				}
+			}
+		}
+		m_Logger.Write(pName, LogNotice, "I2C scan done, %u device(s)", nFound);
+
+		const u8 DisplayOff[] = { 0x80, 0xAE };
+		const int nWrite = m_I2CMaster.Write(m_Config.LCDI2CLCDAddress, DisplayOff, sizeof(DisplayOff));
+		m_Logger.Write(pName, LogNotice, "I2C: 2-byte write to LCD address 0x%02X returned %d", m_Config.LCDI2CLCDAddress, nWrite);
+	}
+
 	// Init SPI
 	if (!m_SPIMaster.Initialize())
 		return false;
