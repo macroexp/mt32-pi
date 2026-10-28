@@ -260,7 +260,29 @@ void CSSD1306::WriteFrameBuffer(bool bForceFullUpdate) const
 	if (bNeedsUpdate)
 	{
 		const unsigned nSize = sizeof(TFrameBufferUpdatePacket::DataControlByte) + nFrameBufferSize;
+#if RASPPI >= 5
+		// Experiment (branch pi5-i2c-chunked): send the frame in transfers that fit the
+		// RP1 I2C TX FIFO (16 entries: control byte + 15 data bytes); the SSD1306's
+		// horizontal addressing mode carries the RAM pointer across transfers
+		constexpr size_t nChunkData = 15;
+		const u8* const pData = m_FrameBuffers[m_nCurrentFrameBuffer].FrameBuffer;
+		int nResult = static_cast<int>(nSize);
+		for (size_t nOffset = 0; nOffset < nFrameBufferSize; nOffset += nChunkData)
+		{
+			const size_t nCount = Utility::Min(nChunkData, nFrameBufferSize - nOffset);
+			u8 Chunk[1 + nChunkData];
+			Chunk[0] = m_FrameBuffers[m_nCurrentFrameBuffer].DataControlByte;
+			memcpy(Chunk + 1, pData + nOffset, nCount);
+			const int nChunkResult = m_pI2CMaster->Write(m_nAddress, Chunk, 1 + nCount);
+			if (nChunkResult != static_cast<int>(1 + nCount))
+			{
+				nResult = nChunkResult;
+				break;
+			}
+		}
+#else
 		const int nResult = m_pI2CMaster->Write(m_nAddress, &m_FrameBuffers[m_nCurrentFrameBuffer], nSize);
+#endif
 
 		// Debug (branch pi5-i2c-scan, never merge)
 		static unsigned nWrites = 0, nFailures = 0;
