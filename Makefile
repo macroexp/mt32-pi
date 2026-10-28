@@ -66,6 +66,7 @@ $(CIRCLE_STDLIB_CONFIG) $(CIRCLE_CONFIG)&:
 circle-stdlib: $(CIRCLESTDLIBHOME)/.done
 
 $(CIRCLESTDLIBHOME)/.done: $(CIRCLE_STDLIB_CONFIG)
+	@${APPLY_PATCH} $(CIRCLEHOME) patches/circle-51.1.1-rp1-i2c-debug.patch
 	@$(MAKE) -C $(CIRCLESTDLIBHOME)
 	touch $@
 
@@ -154,6 +155,7 @@ clean:
 mrproper: clean
 # Reverse patches
 	@${REVERSE_PATCH} $(FLUIDSYNTHHOME) patches/fluidsynth-2.6.1-circle.patch
+	@${REVERSE_PATCH} $(CIRCLEHOME) patches/circle-51.1.1-rp1-i2c-debug.patch
 
 # Clean circle-stdlib
 	@if [ -f $(CIRCLE_STDLIB_CONFIG) ]; then $(MAKE) -C $(CIRCLESTDLIBHOME) mrproper; fi

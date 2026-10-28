@@ -1,0 +1,39 @@
+--- a/lib/i2cmaster-rp1.cpp	2026-10-28 02:48:10.038352507 -0400
++++ b/lib/i2cmaster-rp1.cpp	2026-10-28 02:48:10.041075695 -0400
+@@ -346,6 +346,16 @@
+ 	return FALSE;
+ }
+ 
++// pim-32 debug (branch pi5-i2c-scan, never merge): last abort source and state at timeout
++extern "C" {
++volatile u32 g_nRP1I2CAbortSource = 0;
++volatile u32 g_nRP1I2CAbortTXFLR = 0;
++volatile u32 g_nRP1I2CAbortRemaining = 0;
++volatile u32 g_nRP1I2CTimeoutStatus = 0;
++volatile u32 g_nRP1I2CTimeoutRawIntr = 0;
++volatile u32 g_nRP1I2CTimeoutTXFLR = 0;
++}
++
+ int CI2CMaster::Transfer (boolean bRead, u8 ucAddress, void *pBuffer, unsigned nCount)
+ {
+ 	m_bRead = bRead;
+@@ -368,6 +378,9 @@
+ 		if (CTimer::GetClockTicks () - nStartTicks >= CLOCKHZ/2)
+ 		{
+ 			// TODO: Recover bus
++			g_nRP1I2CTimeoutStatus = read32 (m_nBaseAddress + DW_IC_STATUS);
++			g_nRP1I2CTimeoutRawIntr = read32 (m_nBaseAddress + DW_IC_RAW_INTR_STAT);
++			g_nRP1I2CTimeoutTXFLR = read32 (m_nBaseAddress + DW_IC_TXFLR);
+ 
+ 			m_nResult = -I2C_MASTER_TIMEOUT;
+ 
+@@ -379,6 +392,9 @@
+ 
+ 		if (stat & DW_IC_INTR_TX_ABRT)
+ 		{
++			g_nRP1I2CAbortSource = abort_source;
++			g_nRP1I2CAbortTXFLR = read32 (m_nBaseAddress + DW_IC_TXFLR);
++			g_nRP1I2CAbortRemaining = m_nTXBufferLen;
+ 			m_nResult = -I2C_MASTER_ERROR_NACK;	// TODO: Check abort_source
+ 			m_nRXOutstanding = 0;
+ 

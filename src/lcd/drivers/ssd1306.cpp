@@ -24,6 +24,20 @@
 
 #include <circle/logger.h>
 
+// Debug (branch pi5-i2c-scan, never merge): set by patches/circle-51.1.1-rp1-i2c-debug.patch
+extern "C" volatile u32 g_nRP1I2CAbortSource, g_nRP1I2CAbortTXFLR, g_nRP1I2CAbortRemaining;
+extern "C" volatile u32 g_nRP1I2CTimeoutStatus, g_nRP1I2CTimeoutRawIntr, g_nRP1I2CTimeoutTXFLR;
+
+static void LogI2CState(int nResult)
+{
+	if (nResult == -2)
+		CLogger::Get()->Write("ssd1306", LogNotice, "  abort source 0x%08X, TXFLR %u, %u bytes not queued",
+			g_nRP1I2CAbortSource, g_nRP1I2CAbortTXFLR, g_nRP1I2CAbortRemaining);
+	else if (nResult == -5)
+		CLogger::Get()->Write("ssd1306", LogNotice, "  timeout: status 0x%08X, raw intr 0x%08X, TXFLR %u",
+			g_nRP1I2CTimeoutStatus, g_nRP1I2CTimeoutRawIntr, g_nRP1I2CTimeoutTXFLR);
+}
+
 #include "lcd/drivers/ssd1306.h"
 #include "lcd/font6x8.h"
 #include "lcd/images.h"
@@ -225,7 +239,10 @@ void CSSD1306::WriteCommand(u8 nCommand) const
 	static unsigned nCommands = 0, nFailures = 0;
 	++nCommands;
 	if (nResult != sizeof(Buffer) && ++nFailures <= 20)
+	{
 		CLogger::Get()->Write("ssd1306", LogNotice, "command #%u 0x%02X returned %d", nCommands, nCommand, nResult);
+		LogI2CState(nResult);
+	}
 	else if (nCommands <= 3)
 		CLogger::Get()->Write("ssd1306", LogNotice, "command #%u 0x%02X OK", nCommands, nCommand);
 }
@@ -249,7 +266,10 @@ void CSSD1306::WriteFrameBuffer(bool bForceFullUpdate) const
 		static unsigned nWrites = 0, nFailures = 0;
 		++nWrites;
 		if (nResult != static_cast<int>(nSize) && ++nFailures <= 20)
+		{
 			CLogger::Get()->Write("ssd1306", LogNotice, "frame write #%u (%u bytes) returned %d", nWrites, nSize, nResult);
+			LogI2CState(nResult);
+		}
 		else if (nWrites <= 3)
 			CLogger::Get()->Write("ssd1306", LogNotice, "frame write #%u (%u bytes) OK", nWrites, nSize);
 	}
