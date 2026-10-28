@@ -160,7 +160,8 @@ jobs:
       uses: actions/cache@v6
       with:
         path: sdcard/firmware
-        key: cache-wlan-firmware-${{ hashFiles(join(env.wlan-home, '/firmware/Makefile')) }}
+        # Bump the suffix when the file list below changes, or a stale cache hit skips new files
+        key: cache-wlan-firmware-v2-${{ hashFiles(join(env.wlan-home, '/firmware/Makefile')) }}
 
     - name: Cache ARM toolchains
       if: steps.cache-boot-files.outputs.cache-hit != 'true'
@@ -223,6 +224,9 @@ jobs:
             ${{ env.wlan-home }}/firmware/brcmfmac43455-sdio.bin \
             ${{ env.wlan-home }}/firmware/brcmfmac43455-sdio.txt \
             ${{ env.wlan-home }}/firmware/brcmfmac43455-sdio.clm_blob \
+            "${{ env.wlan-home }}/firmware/brcmfmac43455-sdio.raspberrypi,5-model-b.bin" \
+            "${{ env.wlan-home }}/firmware/brcmfmac43455-sdio.raspberrypi,5-model-b.txt" \
+            "${{ env.wlan-home }}/firmware/brcmfmac43455-sdio.raspberrypi,5-model-b.clm_blob" \
             ${{ env.wlan-home }}/firmware/brcmfmac43456-sdio.bin \
             ${{ env.wlan-home }}/firmware/brcmfmac43456-sdio.txt \
             ${{ env.wlan-home }}/firmware/brcmfmac43456-sdio.clm_blob \
