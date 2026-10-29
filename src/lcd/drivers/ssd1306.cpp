@@ -224,8 +224,17 @@ bool CSSD1306::Initialize()
 		SetPageAddress,			0x00,	nPageAddrRange,
 	};
 
+	// Debug (branch pi5-i2c-scan, never merge): SSD1306 status byte, bit 6 = display off
+	u8 nStatus = 0xFF;
+	int nRead = m_pI2CMaster->Read(m_nAddress, &nStatus, 1);
+	CLogger::Get()->Write("ssd1306", LogNotice, "%ux%u at 0x%02X, status before init 0x%02X (read %d)", m_nWidth, m_nHeight, m_nAddress, nStatus, nRead);
+
 	for (u8 nCommand : InitSequence)
 		WriteCommand(nCommand);
+
+	nStatus = 0xFF;
+	nRead = m_pI2CMaster->Read(m_nAddress, &nStatus, 1);
+	CLogger::Get()->Write("ssd1306", LogNotice, "status after init 0x%02X (read %d): display %s", nStatus, nRead, (nStatus & 0x40) ? "OFF" : "ON");
 
 	return true;
 }
