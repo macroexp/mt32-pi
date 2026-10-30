@@ -41,7 +41,7 @@ public:
 
 	#define ENUM_USBMODE(ENUM) \
 		ENUM(Host, host)       \
-		ENUM(Gadget, gadget)
+		ENUM(MIDIDevice, midi_device)
 
 	#define ENUM_AUDIOOUTPUTDEVICE(ENUM) \
 		ENUM(PWM, pwm)                   \
