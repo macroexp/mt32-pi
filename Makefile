@@ -66,6 +66,7 @@ $(CIRCLE_STDLIB_CONFIG) $(CIRCLE_CONFIG)&:
 circle-stdlib: $(CIRCLESTDLIBHOME)/.done
 
 $(CIRCLESTDLIBHOME)/.done: $(CIRCLE_STDLIB_CONFIG)
+	@${APPLY_PATCH} $(CIRCLEHOME) patches/circle-51.1.1-usb-midi-gadget.patch
 	@$(MAKE) -C $(CIRCLESTDLIBHOME)
 	touch $@
 
@@ -153,6 +154,7 @@ clean:
 #
 mrproper: clean
 # Reverse patches
+	@${REVERSE_PATCH} $(CIRCLEHOME) patches/circle-51.1.1-usb-midi-gadget.patch
 	@${REVERSE_PATCH} $(FLUIDSYNTHHOME) patches/fluidsynth-2.6.1-circle.patch
 
 # Clean circle-stdlib
