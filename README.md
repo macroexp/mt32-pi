@@ -35,7 +35,7 @@ Current goals: update the Circle framework, FluidSynth, Munt and the build toolc
 - [I²S Hi-Fi DAC support][I²S Hi-Fi DACs].
   * This is the recommended audio output method for the best quality audio.
 - MIDI input via [USB][USB MIDI interfaces], [GPIO][GPIO MIDI interface] MIDI interfaces, or the [serial port].
-- USB MIDI device mode on the Pi Zero 2 W, 3A+ and 4B: connect the Pi straight to a computer and it appears as a USB MIDI device (`usb_mode = gadget` in `mt32-pi.cfg`).
+- USB MIDI device mode on the Pi Zero 2 W, 3A+ and 4B: connect the Pi straight to a computer and it appears as a USB MIDI device (`usb_mode = midi_device` in `mt32-pi.cfg`).
 - [Configuration file] for selecting hardware options and fine tuning.
 - [LCD status screen support][LCD and OLED displays] (for MT-32 SysEx messages and status information).
 - Simple [physical control surface][control surface] using buttons and rotary encoder.

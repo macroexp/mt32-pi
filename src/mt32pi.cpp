@@ -185,15 +185,15 @@ bool CMT32Pi::Initialize(bool bSerialMIDIAvailable)
 	LCDLog(TLCDLogType::Startup, "Init USB");
 	if (m_pConfig->SystemUSB)
 	{
-		bool bGadgetMode = m_pConfig->SystemUSBMode == CConfig::TUSBMode::Gadget;
-		if (bGadgetMode && !CMT32PiUSBMIDIGadget::IsSupported())
+		bool bMIDIDeviceMode = m_pConfig->SystemUSBMode == CConfig::TUSBMode::MIDIDevice;
+		if (bMIDIDeviceMode && !CMT32PiUSBMIDIGadget::IsSupported())
 		{
-			LOGWARN("USB gadget mode is not supported on this Raspberry Pi model; using host mode");
-			bGadgetMode = false;
+			LOGWARN("USB MIDI device mode is not supported on this Raspberry Pi model; using host mode");
+			bMIDIDeviceMode = false;
 		}
 
-		// Host and gadget mode can't share the USB controller, so only create the one we need
-		if (bGadgetMode)
+		// Host and MIDI device (gadget) mode can't share the USB controller, so only create the one we need
+		if (bMIDIDeviceMode)
 			m_pUSB = new CMT32PiUSBMIDIGadget(m_pInterrupt);
 		else
 			m_pUSB = new CUSBHCIDevice(m_pInterrupt, m_pTimer, true);
@@ -202,8 +202,8 @@ bool CMT32Pi::Initialize(bool bSerialMIDIAvailable)
 		{
 			m_bUSBAvailable = true;
 
-			if (bGadgetMode)
-				LOGNOTE("USB gadget mode; waiting for a USB host");
+			if (bMIDIDeviceMode)
+				LOGNOTE("USB MIDI device mode; waiting for a USB host");
 
 			// Perform an initial Plug and Play update to initialize devices early
 			UpdateUSB(true);
