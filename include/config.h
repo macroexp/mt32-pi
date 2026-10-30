@@ -39,6 +39,10 @@ public:
 		ENUM(MT32, mt32)                  \
 		ENUM(SoundFont, soundfont)
 
+	#define ENUM_USBMODE(ENUM) \
+		ENUM(Host, host)       \
+		ENUM(MIDIDevice, midi_device)
+
 	#define ENUM_AUDIOOUTPUTDEVICE(ENUM) \
 		ENUM(PWM, pwm)                   \
 		ENUM(HDMI, hdmi)                 \
@@ -71,6 +75,7 @@ public:
 		ENUM(WiFi, wifi)
 
 	CONFIG_ENUM(TSystemDefaultSynth, ENUM_SYSTEMDEFAULTSYNTH);
+	CONFIG_ENUM(TUSBMode, ENUM_USBMODE);
 	CONFIG_ENUM(TAudioOutputDevice, ENUM_AUDIOOUTPUTDEVICE);
 	CONFIG_ENUM(TControlScheme, ENUM_CONTROLSCHEME);
 	CONFIG_ENUM(TLCDType, ENUM_LCDTYPE);
@@ -92,6 +97,7 @@ public:
 	static bool ParseOption(const char *pString, CString* pOut);
 	static bool ParseOption(const char *pString, CIPAddress* pOut);
 	static bool ParseOption(const char* pString, TSystemDefaultSynth* pOut);
+	static bool ParseOption(const char* pString, TUSBMode* pOut);
 	static bool ParseOption(const char* pString, TAudioOutputDevice* pOut);
 	static bool ParseOption(const char* pString, TMT32EmuResamplerQuality* pOut);
 	static bool ParseOption(const char* pString, TMT32EmuMIDIChannels* pOut);

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- USB MIDI device mode: set `usb_mode = midi_device` in `mt32-pi.cfg` and a Pi Zero 2 W, 3A+ or 4B connected straight to a computer appears there as a USB MIDI device called "mt32-pi", so no MIDI interface is needed. On a Pi Zero 2 W, use the port labelled "USB"; on a Pi 4B, the USB-C port. In this mode USB sticks and other USB devices can't be plugged into the Pi. The device uses a pid.codes test USB ID for now.
+
 ## [0.17.0] - 2026-10-27
 
 ### Added
