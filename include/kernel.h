@@ -53,7 +53,6 @@ protected:
 	CTimer m_Timer;
 	CLogger m_Logger;
 	CScheduler m_Scheduler;
-	CUSBHCIDevice m_USBHCI;
 	CEMMCDevice m_EMMC;
 	FATFS m_SDFileSystem;
 

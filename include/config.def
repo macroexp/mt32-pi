@@ -39,6 +39,7 @@ BEGIN_SECTION(system)
 CFG(verbose,			bool,				SystemVerbose,				false						)
 CFG(default_synth,		TSystemDefaultSynth,		SystemDefaultSynth,			TSystemDefaultSynth::MT32			)
 CFG(usb,			bool,				SystemUSB,				true						)
+CFG(usb_mode,			TUSBMode,			SystemUSBMode,				TUSBMode::Host					)
 CFG(i2c_baud_rate,		int,				SystemI2CBaudRate,			400000						)
 CFG(power_save_timeout,		int,				SystemPowerSaveTimeout,			300						)
 END_SECTION

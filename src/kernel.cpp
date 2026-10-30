@@ -37,14 +37,13 @@ CKernel::CKernel(void)
 
 	  m_Timer(&mInterrupt),
 	  m_Logger(mOptions.GetLogLevel(), &m_Timer),
-	  m_USBHCI(&mInterrupt, &m_Timer, true),
 	  m_EMMC(&mInterrupt, &m_Timer, &mActLED),
 	  m_SDFileSystem{},
 
 	  m_I2CMaster(1, true),
 	  m_GPIOManager(&mInterrupt),
 
-	  m_MT32Pi(&m_I2CMaster, &m_SPIMaster, &mInterrupt, &m_GPIOManager, &m_Serial, &m_USBHCI)
+	  m_MT32Pi(&m_I2CMaster, &m_SPIMaster, &mInterrupt, &m_GPIOManager, &m_Serial)
 {
 }
 
