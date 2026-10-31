@@ -29,6 +29,14 @@
 
 LOGMODULE("power");
 
+#if RASPPI >= 5
+// Pi 5 fan connector: GPIO 45, active low (as Circle's CCPUThrottle drives it).
+// Switch on at FanOnTemperature, off again below FanOffTemperature.
+constexpr unsigned FanGPIOPin          = 45;
+constexpr unsigned FanOnTemperature    = 60;
+constexpr unsigned FanOffTemperature   = 50;
+#endif
+
 // Bits in the throttled status response
 constexpr u32 UnderVoltageOccurredBit = 1 << 16;
 constexpr u32 ThrottlingOccurredBit   = 1 << 18;
@@ -39,9 +47,16 @@ CPower::CPower()
 	  m_State(TState::Normal),
 	  m_LastThrottledStatus(0)
 #if RASPPI >= 5
-	  , m_nLastThrottledCheckTime(0)
+	  , m_nLastThrottledCheckTime(0),
+	  m_bFanOn(false)
 #endif
 {
+#if RASPPI >= 5
+	// Start with the fan off; UpdateFan() switches it on when the SoC gets warm
+	m_FanPin.AssignPin(FanGPIOPin);
+	m_FanPin.SetMode(GPIOModeOutput, false);
+	m_FanPin.Write(HIGH);
+#endif
 }
 
 void CPower::Update()
@@ -64,9 +79,34 @@ void CPower::Update()
 	if (nTicks - m_nLastThrottledCheckTime < HZ)
 		return;
 	m_nLastThrottledCheckTime = nTicks;
+
+	UpdateFan();
 #endif
 	UpdateThrottledStatus();
 }
+
+#if RASPPI >= 5
+void CPower::UpdateFan()
+{
+	// SoC temperature in degrees Celsius from the firmware; 0 on failure
+	const unsigned nTemperature = CCPUThrottle::Get()->GetTemperature();
+	if (nTemperature == 0)
+		return;
+
+	if (!m_bFanOn && nTemperature >= FanOnTemperature)
+	{
+		m_FanPin.Write(LOW);
+		m_bFanOn = true;
+		LOGNOTE("Fan on (%uC)", nTemperature);
+	}
+	else if (m_bFanOn && nTemperature < FanOffTemperature)
+	{
+		m_FanPin.Write(HIGH);
+		m_bFanOn = false;
+		LOGNOTE("Fan off (%uC)", nTemperature);
+	}
+}
+#endif
 
 void CPower::Awaken()
 {
