@@ -27,6 +27,7 @@ Current goals: update the Circle framework, FluidSynth, Munt and the build toolc
 <img title="mt32-pi running on the Raspberry Pi 3 A+ with the Arananet PI-MIDI HAT." width="280rem" align="right" src="images/mt32pi_pimidi.png">
 
 - Supports Raspberry Pi Zero 2 W, Raspberry Pi 3 Model A+, B, and B+, Raspberry Pi 4 Model B, and CM4 series.
+  * Raspberry Pi 5 support is experimental: use an I²S DAC or HDMI for audio (no PWM). Pi 500 and CM5 are untested; Pisound and MiSTer haven't been tested on the Pi 5.
   * Pi 2 works, but only with concessions on playback quality.
   * Pi Zero (original) and Pi 1 are unfortunately too slow (even with an overclock) and unsupported.
 - PWM headphone jack audio.

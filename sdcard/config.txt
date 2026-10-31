@@ -44,3 +44,9 @@ arm_freq_min=100
 gpu_freq=100
 over_voltage=-16
 over_voltage_min=-16
+
+[pi5]
+# The Pi 5 (BCM2712) only runs 64-bit kernels and loads kernel_2712.img by default;
+# Circle's kernel is linked to run at 0x80000 (as in Circle's boot/config64.txt)
+kernel=kernel_2712.img
+kernel_address=0x80000

@@ -117,6 +117,9 @@ private:
 	void MainTask();
 	void UITask();
 	void AudioTask();
+#if RASPPI >= 5
+	void ControlTask();
+#endif
 
 	void UpdateUSB(bool bStartup = false);
 	void UpdateNetwork();

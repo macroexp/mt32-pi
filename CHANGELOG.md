@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Experimental Raspberry Pi 5 support (`kernel_2712.img`, built with `BOARD=pi5-64`). Audio goes to an I²S DAC or HDMI; `output_device = pwm` falls back to I²S because the Pi 5 has no headphone jack. Serial MIDI uses GPIO 14/15 as on other boards. Pi 500 and CM5 are untested.
+
 ## [0.17.0] - 2026-10-27
 
 ### Added
