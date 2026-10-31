@@ -21,6 +21,8 @@
 //
 
 #include <circle/memory.h>
+#include <circle/sched/scheduler.h>
+#include <circle/sched/task.h>
 #include <circle/serial.h>
 #include <circle/sound/hdmisoundbasedevice.h>
 #include <circle/sound/i2ssoundbasedevice.h>
@@ -420,6 +422,10 @@ bool CMT32Pi::InitSoundFontSynth()
 	return true;
 }
 
+// Debug (branch pi5-stall-debug, never merge): main loop breadcrumbs for the stall watchdog
+static volatile unsigned s_nMainStep = 0;
+static volatile unsigned s_nMainLoops = 0;
+
 void CMT32Pi::MainTask()
 {
 	CScheduler* const pScheduler = CScheduler::Get();
@@ -431,9 +437,11 @@ void CMT32Pi::MainTask()
 	while (m_bRunning)
 	{
 		// Process MIDI data
+		s_nMainStep = 1;
 		UpdateMIDI();
 
 		// Process network packets
+		s_nMainStep = 2;
 		UpdateNetwork();
 
 		// Update controls
@@ -441,6 +449,7 @@ void CMT32Pi::MainTask()
 			m_pControl->Update();
 
 		// Process events
+		s_nMainStep = 3;
 		ProcessEventQueue();
 
 		const unsigned int nTicks = m_pTimer->GetTicks();
@@ -474,6 +483,7 @@ void CMT32Pi::MainTask()
 		}
 #endif
 
+		s_nMainStep = 4;
 		CPower::Update();
 
 		// Check for deferred SoundFont switch
@@ -493,9 +503,12 @@ void CMT32Pi::MainTask()
 		}
 
 		// Check for USB PnP events
+		s_nMainStep = 5;
 		UpdateUSB();
 
 		// Allow other tasks to run
+		s_nMainStep = 6;
+		++s_nMainLoops;
 		pScheduler->Yield();
 	}
 
@@ -618,17 +631,48 @@ void CMT32Pi::AudioTask()
 #if RASPPI >= 5
 void CMT32Pi::ControlTask()
 {
-	// Nothing for this core to do; bail out
-	if (!m_pControl)
-		return;
+	LOGNOTE("Control task on Core 3 starting up (with stall watchdog)");
 
-	LOGNOTE("Control task on Core 3 starting up");
+	unsigned nLastLoops = s_nMainLoops;
+	unsigned nLastProgress = CTimer::GetClockTicks();
+	unsigned nLastReport = 0;
+	unsigned nLastIRQTicks = CTimer::Get()->GetTicks();
 
 	// Poll buttons/encoder at the rate the user timer interrupt uses on older boards
 	while (m_bRunning)
 	{
-		m_pControl->PollGPIOPins();
+		if (m_pControl)
+			m_pControl->PollGPIOPins();
 		CTimer::SimpleusDelay(CControl::PollRateMicros);
+
+		const unsigned nNow = CTimer::GetClockTicks();
+		const unsigned nLoops = s_nMainLoops;
+		if (nLoops != nLastLoops)
+		{
+			nLastLoops = nLoops;
+			nLastProgress = nNow;
+			continue;
+		}
+
+		// Main loop stuck for 2 s: report every 2 s while it lasts
+		if (nNow - nLastProgress >= 2000000 && nNow - nLastReport >= 2000000)
+		{
+			const unsigned nIRQTicks = CTimer::Get()->GetTicks();
+			const bool bIRQ = nIRQTicks != nLastIRQTicks;
+			nLastIRQTicks = nIRQTicks;
+
+			CTask* const pTask = CScheduler::IsActive() ? CScheduler::Get()->GetCurrentTask() : nullptr;
+			const char* pName = pTask ? pTask->GetName() : "?";
+			if (!pName || !*pName)
+				pName = "(noname)";
+
+			char Message[32];
+			snprintf(Message, sizeof(Message), "STALL s%u %.8s %s", s_nMainStep, pName, bIRQ ? "irq" : "NOIRQ");
+			m_UserInterface.ShowSystemMessage(Message);
+			LOGERR("Main loop stalled %us at step %u, task '%s', timer IRQ %s",
+				(nNow - nLastProgress) / 1000000, s_nMainStep, pName, bIRQ ? "running" : "STOPPED");
+			nLastReport = nNow;
+		}
 	}
 }
 #endif
