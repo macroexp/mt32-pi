@@ -38,6 +38,9 @@ CPower::CPower()
 	  m_nLastActivityTime(0),
 	  m_State(TState::Normal),
 	  m_LastThrottledStatus(0)
+#if RASPPI >= 5
+	  , m_nLastThrottledCheckTime(0)
+#endif
 {
 }
 
@@ -54,6 +57,14 @@ void CPower::Update()
 	}
 
 	// Check for undervoltage and throttling
+#if RASPPI >= 5
+	// This is a firmware mailbox call; the main loop runs thousands of times a
+	// second, and on the Pi 5 that many calls disturb the Wi-Fi driver, which
+	// runs between them on this core. Once a second is plenty.
+	if (nTicks - m_nLastThrottledCheckTime < HZ)
+		return;
+	m_nLastThrottledCheckTime = nTicks;
+#endif
 	UpdateThrottledStatus();
 }
 

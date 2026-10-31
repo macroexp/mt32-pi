@@ -57,6 +57,9 @@ private:
 
 	CBcmPropertyTags m_Tags;
 	u32 m_LastThrottledStatus;
+#if RASPPI >= 5
+	unsigned int m_nLastThrottledCheckTime;
+#endif
 };
 
 #endif
