@@ -436,6 +436,20 @@ void CMT32Pi::MainTask()
 		// Process network packets
 		UpdateNetwork();
 
+#if RASPPI >= 5
+		// Experiment (branch pi5-poll-main): poll buttons/encoder here every 1 ms
+		// instead of from a busy loop on core 3
+		if (m_pControl)
+		{
+			const unsigned int nPollTicks = CTimer::GetClockTicks();
+			if (nPollTicks - m_nLastControlPollTime >= CControl::PollRateMicros)
+			{
+				m_pControl->PollGPIOPins();
+				m_nLastControlPollTime = nPollTicks;
+			}
+		}
+#endif
+
 		// Update controls
 		if (m_pControl)
 			m_pControl->Update();
@@ -647,10 +661,6 @@ void CMT32Pi::Run(unsigned nCore)
 		case 2:
 			return AudioTask();
 
-#if RASPPI >= 5
-		case 3:
-			return ControlTask();
-#endif
 
 		default:
 			break;

@@ -119,6 +119,7 @@ private:
 	void AudioTask();
 #if RASPPI >= 5
 	void ControlTask();
+	unsigned int m_nLastControlPollTime = 0;
 #endif
 
 	void UpdateUSB(bool bStartup = false);
