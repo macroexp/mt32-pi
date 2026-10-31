@@ -51,6 +51,7 @@ void CPower::Update()
 	// Power save timeout
 	if (m_State == TState::Normal && m_nPowerSaveTimeout && (nTicks - m_nLastActivityTime) >= m_nPowerSaveTimeout * HZ)
 	{
+		LOGNOTE("PS 0/3: setting CPU speed low (debug)"); CTimer::SimpleMsDelay(2000);
 		CCPUThrottle::Get()->SetSpeed(TCPUSpeed::CPUSpeedLow);
 		m_State = TState::PowerSaving;
 		OnEnterPowerSavingMode();

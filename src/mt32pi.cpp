@@ -659,9 +659,14 @@ void CMT32Pi::Run(unsigned nCore)
 
 void CMT32Pi::OnEnterPowerSavingMode()
 {
+	// Debug (branch pi5-powersave-debug, never merge): log each step, then pause
+	// 2 s so the line is on screen before a possible hang
 	CPower::OnEnterPowerSavingMode();
+	LOGNOTE("PS 1/3: cancelling sound device"); CTimer::SimpleMsDelay(2000);
 	m_pSound->Cancel();
+	LOGNOTE("PS 2/3: sound cancelled; entering UI power saving"); CTimer::SimpleMsDelay(2000);
 	m_UserInterface.EnterPowerSavingMode();
+	LOGNOTE("PS 3/3: power saving entered");
 }
 
 void CMT32Pi::OnExitPowerSavingMode()
