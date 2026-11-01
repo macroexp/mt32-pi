@@ -39,13 +39,13 @@ public:
 
 	// CSynthBase
 	virtual bool Initialize() override;
-	virtual void HandleMIDIShortMessage(u32 nMessage) override;
-	virtual void HandleMIDISysExMessage(const u8* pData, size_t nSize) override;
-	virtual bool IsActive() override;
-	virtual void AllSoundOff() override;
-	virtual void SetMasterVolume(u8 nVolume) override;
-	virtual size_t Render(s16* pOutBuffer, size_t nFrames) override;
-	virtual size_t Render(float* pOutBuffer, size_t nFrames) override;
+	virtual void HandleMIDIShortMessage(u32 nMessage) EXCLUDES(m_Lock) override;
+	virtual void HandleMIDISysExMessage(const u8* pData, size_t nSize) EXCLUDES(m_Lock) override;
+	virtual bool IsActive() EXCLUDES(m_Lock) override;
+	virtual void AllSoundOff() EXCLUDES(m_Lock) override;
+	virtual void SetMasterVolume(u8 nVolume) EXCLUDES(m_Lock) override;
+	virtual size_t Render(s16* pOutBuffer, size_t nFrames) EXCLUDES(m_Lock) override;
+	virtual size_t Render(float* pOutBuffer, size_t nFrames) EXCLUDES(m_Lock) override;
 	virtual void ReportStatus() const override;
 	virtual void UpdateLCD(CLCD& LCD, unsigned int nTicks) override;
 
@@ -54,7 +54,8 @@ public:
 	CSoundFontManager& GetSoundFontManager() { return m_SoundFontManager; }
 
 private:
-	bool Reinitialize(const char* pSoundFontPath, const TFXProfile* pFXProfile);
+	// Builds and loads the new synth privately, then installs it under m_Lock (PR #25)
+	bool Reinitialize(const char* pSoundFontPath, const TFXProfile* pFXProfile) EXCLUDES(m_Lock);
 	void ResetMIDIMonitor();
 #ifndef NDEBUG
 	void DumpFXSettings(fluid_synth_t* pSynth) const;
@@ -86,11 +87,11 @@ private:
 	};
 
 	void ResetChannelState();
-	void RecordChannelState(u8 nStatus, u8 nChannel, u8 nData1, u8 nData2);
-	void ReplayChannelState(fluid_synth_t* pSynth) const;
+	void RecordChannelState(u8 nStatus, u8 nChannel, u8 nData1, u8 nData2) REQUIRES(m_Lock);
+	void ReplayChannelState(fluid_synth_t* pSynth) const REQUIRES(m_Lock);
 
 	fluid_settings_t* m_pSettings;
-	fluid_synth_t* m_pSynth;
+	fluid_synth_t* m_pSynth GUARDED_BY(m_Lock) PT_GUARDED_BY(m_Lock);
 
 	u8 m_nVolume;
 	float m_nInitialGain;

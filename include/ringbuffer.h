@@ -23,8 +23,9 @@
 #ifndef _ringbuffer_h
 #define _ringbuffer_h
 
-#include <circle/spinlock.h>
 #include <circle/types.h>
+
+#include "threadsafety.h"
 
 #include "utility.h"
 
@@ -100,7 +101,7 @@ public:
 private:
 	static_assert(Utility::IsPowerOfTwo(N), "Ring buffer size must be a power of 2");
 
-	inline bool EnqueueOne(const T& Item)
+	inline bool EnqueueOne(const T& Item) REQUIRES(m_Lock)
 	{
 		if (((m_nInPtr + 1) & BufferMask) != m_nOutPtr)
 		{
@@ -114,10 +115,10 @@ private:
 
 	static constexpr size_t BufferMask = N - 1;
 
-	CSpinLock m_Lock;
-	volatile size_t m_nInPtr;
-	volatile size_t m_nOutPtr;
-	T m_Data[N];
+	CAnnotatedSpinLock m_Lock;
+	volatile size_t m_nInPtr GUARDED_BY(m_Lock);
+	volatile size_t m_nOutPtr GUARDED_BY(m_Lock);
+	T m_Data[N] GUARDED_BY(m_Lock);
 };
 
 #endif

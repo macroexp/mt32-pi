@@ -160,6 +160,30 @@ jobs:
     - name: Test
       run: ctest --test-dir build-host --output-on-failure -j 2
 
+  # Clang thread-safety analysis over pim-32's sources: touching lock-guarded
+  # state without the lock fails the build (include/threadsafety.h)
+  thread-safety:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Fetch submodules
+      run: |
+        git submodule update --init --depth 1 external/munt external/fluidsynth external/inih
+        git -C external/fluidsynth submodule update --init --depth 1 gcem
+
+    - name: Install host build dependencies
+      run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build clang
+
+    - name: Configure
+      run: >
+        cmake -S tests/host -B build-thread-safety -G Ninja
+        -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+        -DPIM32_SANITIZE= -DPIM32_THREAD_SAFETY=ON
+
+    - name: Clang -Wthread-safety
+      run: cmake --build build-thread-safety --target thread_safety
+
   package:
     needs: build
     runs-on: ubuntu-latest
