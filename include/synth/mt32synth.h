@@ -53,26 +53,30 @@ public:
 	virtual ~CMT32Synth();
 
 	// CSynthBase
-	virtual bool Initialize() override;
-	virtual void HandleMIDIShortMessage(u32 nMessage) override;
-	virtual void HandleMIDISysExMessage(const u8* pData, size_t nSize) override;
-	virtual bool IsActive() override { return m_pSynth->isActive(); }
-	virtual void AllSoundOff() override;
-	virtual void SetMasterVolume(u8 nVolume) override;
-	virtual size_t Render(s16* pBuffer, size_t nFrames) override;
-	virtual size_t Render(float* pBuffer, size_t nFrames) override;
+	// Runs before the other cores can reach this synth
+	virtual bool Initialize() NO_THREAD_SAFETY_ANALYSIS override;
+	virtual void HandleMIDIShortMessage(u32 nMessage) EXCLUDES(m_Lock) override;
+	virtual void HandleMIDISysExMessage(const u8* pData, size_t nSize) EXCLUDES(m_Lock) override;
+	// Concurrency audit C4: Munt's isActive() without m_Lock. Remove NO_THREAD_SAFETY_ANALYSIS with the fix.
+	virtual bool IsActive() NO_THREAD_SAFETY_ANALYSIS override { return m_pSynth->isActive(); }
+	virtual void AllSoundOff() EXCLUDES(m_Lock) override;
+	virtual void SetMasterVolume(u8 nVolume) EXCLUDES(m_Lock) override;
+	virtual size_t Render(s16* pBuffer, size_t nFrames) EXCLUDES(m_Lock) override;
+	virtual size_t Render(float* pBuffer, size_t nFrames) EXCLUDES(m_Lock) override;
 	virtual void ReportStatus() const override;
-	virtual void UpdateLCD(CLCD& LCD, unsigned int nTicks) override;
+	// Concurrency audit C3: Munt's getDisplayState() without m_Lock. Remove NO_THREAD_SAFETY_ANALYSIS with the fix.
+	virtual void UpdateLCD(CLCD& LCD, unsigned int nTicks) NO_THREAD_SAFETY_ANALYSIS override;
 
-	void SetMIDIChannels(TMIDIChannels Channels);
-	void SetReversedStereo(bool bEnabled) { m_pSynth->setReversedStereoEnabled(bEnabled); }
-	bool SwitchROMSet(TMT32ROMSet ROMSet);
+	void SetMIDIChannels(TMIDIChannels Channels) EXCLUDES(m_Lock);
+	// Concurrency audit C12: without m_Lock. Remove NO_THREAD_SAFETY_ANALYSIS with the fix.
+	void SetReversedStereo(bool bEnabled) NO_THREAD_SAFETY_ANALYSIS { m_pSynth->setReversedStereoEnabled(bEnabled); }
+	bool SwitchROMSet(TMT32ROMSet ROMSet) EXCLUDES(m_Lock);
 	bool NextROMSet();
 	TMT32ROMSet GetROMSet() const;
 	const char* GetControlROMName() const;
 	CROMManager& GetROMManager() { return m_ROMManager; }
 
-	u8 GetMasterVolume() const;
+	u8 GetMasterVolume() const REQUIRES(m_Lock);
 
 private:
 	static constexpr size_t MT32ChannelCount = 9;
@@ -80,7 +84,8 @@ private:
 	// N characters plus null terminator
 	static constexpr size_t LCDTextBufferSize = 20 + 1;
 
-	void GetPartLevels(unsigned int nTicks, float PartLevels[9], float PartPeaks[9]);
+	// Concurrency audit C3: Munt's readMemory() without m_Lock. Remove NO_THREAD_SAFETY_ANALYSIS with the fix.
+	void GetPartLevels(unsigned int nTicks, float PartLevels[9], float PartPeaks[9]) NO_THREAD_SAFETY_ANALYSIS;
 
 	// MT32Emu::ReportHandler
 	virtual bool onMIDIQueueOverflow() override;
@@ -91,13 +96,13 @@ private:
 	static const u8 StandardMIDIChannelsSysEx[];
 	static const u8 AlternateMIDIChannelsSysEx[];
 
-	MT32Emu::Synth* m_pSynth;
+	MT32Emu::Synth* m_pSynth PT_GUARDED_BY(m_Lock);
 
 	float m_nGain;
 	float m_nReverbGain;
 
 	TResamplerQuality m_ResamplerQuality;
-	MT32Emu::SampleRateConverter* m_pSampleRateConverter;
+	MT32Emu::SampleRateConverter* m_pSampleRateConverter PT_GUARDED_BY(m_Lock);
 
 	CROMManager m_ROMManager;
 	TMT32ROMSet m_CurrentROMSet;

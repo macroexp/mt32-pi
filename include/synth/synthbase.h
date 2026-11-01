@@ -23,12 +23,12 @@
 #ifndef _synthbase_h
 #define _synthbase_h
 
-#include <circle/spinlock.h>
 #include <circle/types.h>
 
 #include "lcd/lcd.h"
 #include "lcd/ui.h"
 #include "midimonitor.h"
+#include "threadsafety.h"
 
 class CSynthBase
 {
@@ -54,7 +54,9 @@ public:
 	virtual void UpdateLCD(CLCD& LCD, unsigned int nTicks) = 0;
 	void SetUserInterface(CUserInterface* pUI) { m_pUI = pUI; }
 
-	CSpinLock m_Lock;
+	// Serialises all calls into the synth library (render on the audio core, MIDI
+	// and control on core 0); FluidSynth's own mutexes are no-ops (osal=embedded)
+	CAnnotatedSpinLock m_Lock;
 	unsigned int m_nSampleRate;
 	CMIDIMonitor m_MIDIMonitor;
 	CUserInterface* m_pUI;

@@ -63,6 +63,26 @@ mapping"; `sudo sysctl -w vm.mmap_rnd_bits=28` fixes it (CI does this).
 If `patches/fluidsynth-2.6.1-circle.patch` changes, the build folder re-copies
 and re-patches FluidSynth on the next build.
 
+## Thread-safety analysis
+
+`include/threadsafety.h` has Clang's capability annotations (`GUARDED_BY`,
+`REQUIRES`, `EXCLUDES`, ...) and `CAnnotatedSpinLock`, which the synth and
+ring-buffer locks use. Under GCC the macros are empty and `CAnnotatedSpinLock`
+is `CSpinLock` itself, so the kernels don't change. With Clang, the
+`thread_safety` target compiles pim-32's sources with `-Wthread-safety` as
+errors (CI job `thread-safety`; about 10 s, it needs only the dependencies'
+generated headers):
+
+```sh
+cmake -S tests/host -B build-host-ts -G Ninja -DCMAKE_C_COMPILER=clang \
+      -DCMAKE_CXX_COMPILER=clang++ -DPIM32_SANITIZE= -DPIM32_THREAD_SAFETY=ON
+cmake --build build-host-ts --target thread_safety
+```
+
+Known unlocked accesses from the concurrency audit are exempt with
+`NO_THREAD_SAFETY_ANALYSIS` and a comment naming the audit item; a fix PR
+removes its exemption, so the analysis then guards the fixed code.
+
 ## Expected outcomes
 
 Each test is registered in `CMakeLists.txt` with `pim32_test()` and one of:

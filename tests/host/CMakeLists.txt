@@ -200,14 +200,21 @@ set(SHIM_SOURCES
 	shim/src/timer.cpp
 	shim/src/stubs.cpp)
 
-add_library(pim32 STATIC ${PIM32_SOURCES} ${SHIM_SOURCES})
+# Definitions and include paths for compiling pim-32 sources against the shim
+add_library(pim32_headers INTERFACE)
 # RASPPI/AARCH as for pi3-64 (the Zero 2 W kernel)
-target_compile_definitions(pim32 PUBLIC RASPPI=3 AARCH=64 PIM32_HOST_TEST=1 MT32_PI_VERSION="host-test")
-target_include_directories(pim32 PUBLIC
+target_compile_definitions(pim32_headers INTERFACE RASPPI=3 AARCH=64 PIM32_HOST_TEST=1 MT32_PI_VERSION="host-test")
+target_include_directories(pim32_headers INTERFACE
 	"${CMAKE_CURRENT_SOURCE_DIR}/shim/include"
 	"${PIM32_ROOT}/include"
 	"${PIM32_ROOT}"
-	"${PIM32_ROOT}/external/inih")
+	"${PIM32_ROOT}/external/inih"
+	"${MUNT_BINARY_DIR}/include"
+	"${FLUID_BINARY_DIR}/include"
+	"${FLUID_SOURCE_DIR}/include")
+
+add_library(pim32 STATIC ${PIM32_SOURCES} ${SHIM_SOURCES})
+target_link_libraries(pim32 PUBLIC pim32_headers)
 separate_arguments(SANITIZE_FLAGS_LIST UNIX_COMMAND "${SANITIZE_FLAGS}")
 # NDEBUG must stay undefined whatever the build type: pim-32 calls the synths'
 # render functions inside assert(), and the kernel keeps asserts on
@@ -215,6 +222,25 @@ target_compile_options(pim32 PUBLIC -UNDEBUG ${SANITIZE_FLAGS_LIST})
 target_link_options(pim32 PUBLIC ${SANITIZE_FLAGS_LIST})
 find_package(Threads REQUIRED)
 target_link_libraries(pim32 PUBLIC fluidsynth mt32emu Threads::Threads)
+
+#
+# Clang thread-safety analysis (CI job thread-safety): compiles pim-32's
+# sources with -Wthread-safety as errors, so an access to lock-guarded state
+# without the lock fails the build. Needs only the dependencies' generated
+# headers, not their libraries: cmake --build <dir> --target thread_safety
+#
+option(PIM32_THREAD_SAFETY "Add the thread_safety target (Clang only)" OFF)
+if(PIM32_THREAD_SAFETY)
+	if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+		message(FATAL_ERROR "PIM32_THREAD_SAFETY needs Clang (-DCMAKE_CXX_COMPILER=clang++)")
+	endif()
+	ExternalProject_Add_StepTargets(munt_ext configure)
+	ExternalProject_Add_StepTargets(fluidsynth_ext configure)
+	add_library(thread_safety OBJECT EXCLUDE_FROM_ALL ${PIM32_SOURCES})
+	target_link_libraries(thread_safety PRIVATE pim32_headers)
+	target_compile_options(thread_safety PRIVATE -Wthread-safety -Werror=thread-safety)
+	add_dependencies(thread_safety munt_ext-configure fluidsynth_ext-configure)
+endif()
 
 #
 # Tests
