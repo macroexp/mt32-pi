@@ -425,17 +425,25 @@ bool CMT32Pi::InitSoundFontSynth()
 
 #if RASPPI >= 5
 // Turn on the generic timer's event stream for the calling core: an event every
-// 2^15 counter ticks (0.6 ms at the Pi 5's 54 MHz), so a core with nothing to do
-// can sleep in WFE (Circle's WaitForEvent()) instead of spinning at full speed
-static void EnableTimerEventStream()
+// 2^(nBit+1) counter ticks (54 MHz on the Pi 5), so a core with nothing to do can
+// sleep in WFE (Circle's WaitForEvent()) instead of spinning at full speed
+static void EnableTimerEventStream(unsigned nBit)
 {
 	u64 nCNTKCTL;
 	asm volatile ("mrs %0, CNTKCTL_EL1" : "=r" (nCNTKCTL));
 	nCNTKCTL &= ~((0xFUL << 4) | (1UL << 3));	// EVNTI, EVNTDIR
-	nCNTKCTL |= (14UL << 4) | (1UL << 2);		// trigger on bit 14 going 0->1, EVNTEN
+	nCNTKCTL |= (u64(nBit) << 4) | (1UL << 2);	// trigger on counter bit nBit going 0->1, EVNTEN
 	asm volatile ("msr CNTKCTL_EL1, %0" :: "r" (nCNTKCTL));
 	asm volatile ("isb");
 }
+
+// UI core: wake every 2^15 ticks (0.6 ms); LCD updates are 16 ms apart
+constexpr unsigned UIEventStreamBit    = 14;
+
+// Audio core: wake every 2^8 ticks (4.7 us, a quarter of a sample period at
+// 48 kHz), so waiting adds no meaningful delay or jitter to when a chunk is
+// rendered, and so to which MIDI events it includes
+constexpr unsigned AudioEventStreamBit = 7;
 #endif
 
 void CMT32Pi::MainTask()
@@ -557,7 +565,7 @@ void CMT32Pi::UITask()
 	m_pCurrentSynth->ReportStatus();
 
 #if RASPPI >= 5
-	EnableTimerEventStream();
+	EnableTimerEventStream(UIEventStreamBit);
 #endif
 
 	while (m_bRunning)
@@ -623,7 +631,7 @@ void CMT32Pi::AudioTask()
 	s8 IntBuffer[nQueueSizeFrames * nBytesPerFrame + (bI2S ? 0 : 1)];
 
 #if RASPPI >= 5
-	EnableTimerEventStream();
+	EnableTimerEventStream(AudioEventStreamBit);
 #endif
 
 	while (m_bRunning)
@@ -631,7 +639,7 @@ void CMT32Pi::AudioTask()
 		const size_t nFrames = nQueueSizeFrames - m_pSound->GetQueueFramesAvail();
 
 #if RASPPI >= 5
-		// Queue full: sleep until the next timer event (0.6 ms) instead of spinning
+		// Queue full: sleep until the next timer event (4.7 us) instead of spinning
 		if (nFrames == 0)
 		{
 			WaitForEvent();
