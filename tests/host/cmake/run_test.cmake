@@ -26,14 +26,31 @@
 #   bug   a known bug: any failure (the test checks correct behaviour)
 # Exit code 77 means the test skipped itself (e.g. no MT-32 ROMs); CTest sees
 # "PIM32_TEST_SKIPPED" through the test's SKIP_REGULAR_EXPRESSION.
+#
+# Whether ThreadSanitizer sees a race depends on how the threads happen to
+# interleave, so a "race" test that runs clean is run again, up to
+# RaceAttempts times in all, before it counts as no longer racing (seen on a
+# 2-core CI runner; locally the race shows up on every run).
 
-execute_process(
-	COMMAND "${EXE}"
-	RESULT_VARIABLE RESULT
-	OUTPUT_VARIABLE OUTPUT
-	ERROR_VARIABLE OUTPUT)
+set(RaceAttempts 5)
 
-message("${OUTPUT}")
+foreach(ATTEMPT RANGE 1 ${RaceAttempts})
+	execute_process(
+		COMMAND "${EXE}"
+		RESULT_VARIABLE RESULT
+		OUTPUT_VARIABLE OUTPUT
+		ERROR_VARIABLE OUTPUT)
+
+	message("${OUTPUT}")
+
+	if(NOT MODE STREQUAL "race" OR NOT RESULT EQUAL 0)
+		break()
+	endif()
+
+	if(ATTEMPT LESS RaceAttempts)
+		message("No race reported on attempt ${ATTEMPT} of ${RaceAttempts}; running again")
+	endif()
+endforeach()
 
 if(RESULT EQUAL 77)
 	message("PIM32_TEST_SKIPPED")
@@ -46,8 +63,8 @@ if(MODE STREQUAL "pass")
 	endif()
 elseif(MODE STREQUAL "race")
 	if(RESULT EQUAL 0)
-		message(FATAL_ERROR "Expected ThreadSanitizer to report this known race, but the test passed. "
-			"If the fix has landed, flip the expectation in tests/host/CMakeLists.txt.")
+		message(FATAL_ERROR "Expected ThreadSanitizer to report this known race, but the test passed "
+			"${RaceAttempts} times. If the fix has landed, flip the expectation in tests/host/CMakeLists.txt.")
 	endif()
 	if(NOT RESULT EQUAL 66 OR NOT OUTPUT MATCHES "ThreadSanitizer: data race")
 		message(FATAL_ERROR "Expected a ThreadSanitizer data race report, got exit ${RESULT}")
