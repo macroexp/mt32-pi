@@ -138,6 +138,7 @@ CSoundFontSynth::CSoundFontSynth(unsigned nSampleRate)
 	  m_nPercussionMask(1 << 9),
 	  m_nCurrentSoundFontIndex(0)
 {
+	ResetChannelState();
 }
 
 CSoundFontSynth::~CSoundFontSynth()
@@ -215,12 +216,24 @@ void CSoundFontSynth::HandleMIDIShortMessage(u32 nMessage)
 	if (nStatus == 0xFF)
 	{
 		m_Lock.Acquire();
-		fluid_synth_system_reset(m_pSynth);
+		ResetChannelState();
+		if (m_pSynth)
+			fluid_synth_system_reset(m_pSynth);
 		m_Lock.Release();
 		return;
 	}
 
 	m_Lock.Acquire();
+
+	// Record channel state even while a SoundFont is loading, so it's replayed into the new synth
+	RecordChannelState(nStatus, nChannel, nData1, nData2);
+
+	// No synth while a SoundFont is loading; drop the message
+	if (!m_pSynth)
+	{
+		m_Lock.Release();
+		return;
+	}
 
 	// Handle channel messages
 	switch (nStatus & 0xF0)
@@ -275,14 +288,15 @@ void CSoundFontSynth::HandleMIDISysExMessage(const u8* pData, size_t nSize)
 
 	// No special handling; forward to FluidSynth SysEx parser, excluding leading 0xF0 and trailing 0xF7
 	m_Lock.Acquire();
-	fluid_synth_sysex(m_pSynth, reinterpret_cast<const char*>(pData + 1), nSize - 2, nullptr, nullptr, nullptr, false);
+	if (m_pSynth)
+		fluid_synth_sysex(m_pSynth, reinterpret_cast<const char*>(pData + 1), nSize - 2, nullptr, nullptr, nullptr, false);
 	m_Lock.Release();
 }
 
 bool CSoundFontSynth::IsActive()
 {
 	m_Lock.Acquire();
-	int nVoices = fluid_synth_get_active_voice_count(m_pSynth);
+	const int nVoices = m_pSynth ? fluid_synth_get_active_voice_count(m_pSynth) : 0;
 	m_Lock.Release();
 
 	return nVoices > 0;
@@ -291,7 +305,8 @@ bool CSoundFontSynth::IsActive()
 void CSoundFontSynth::AllSoundOff()
 {
 	m_Lock.Acquire();
-	fluid_synth_all_sounds_off(m_pSynth, -1);
+	if (m_pSynth)
+		fluid_synth_all_sounds_off(m_pSynth, -1);
 	m_Lock.Release();
 
 	// Reset MIDI monitor
@@ -302,14 +317,18 @@ void CSoundFontSynth::SetMasterVolume(u8 nVolume)
 {
 	m_nVolume = nVolume;
 	m_Lock.Acquire();
-	fluid_synth_set_gain(m_pSynth, m_nVolume / 100.0f * m_nInitialGain);
+	if (m_pSynth)
+		fluid_synth_set_gain(m_pSynth, m_nVolume / 100.0f * m_nInitialGain);
 	m_Lock.Release();
 }
 
 size_t CSoundFontSynth::Render(float* pOutBuffer, size_t nFrames)
 {
 	m_Lock.Acquire();
-	assert(fluid_synth_write_float(m_pSynth, nFrames, pOutBuffer, 0, 2, pOutBuffer, 1, 2) == FLUID_OK);
+	if (m_pSynth)
+		assert(fluid_synth_write_float(m_pSynth, nFrames, pOutBuffer, 0, 2, pOutBuffer, 1, 2) == FLUID_OK);
+	else
+		memset(pOutBuffer, 0, nFrames * 2 * sizeof(*pOutBuffer));
 	m_Lock.Release();
 	return nFrames;
 }
@@ -317,7 +336,10 @@ size_t CSoundFontSynth::Render(float* pOutBuffer, size_t nFrames)
 size_t CSoundFontSynth::Render(s16* pOutBuffer, size_t nFrames)
 {
 	m_Lock.Acquire();
-	assert(fluid_synth_write_s16(m_pSynth, nFrames, pOutBuffer, 0, 2, pOutBuffer, 1, 2) == FLUID_OK);
+	if (m_pSynth)
+		assert(fluid_synth_write_s16(m_pSynth, nFrames, pOutBuffer, 0, 2, pOutBuffer, 1, 2) == FLUID_OK);
+	else
+		memset(pOutBuffer, 0, nFrames * 2 * sizeof(*pOutBuffer));
 	m_Lock.Release();
 	return nFrames;
 }
@@ -382,49 +404,62 @@ bool CSoundFontSynth::Reinitialize(const char* pSoundFontPath, const TFXProfile*
 {
 	const CConfig* const pConfig = CConfig::Get();
 
+	// Detach the current synth first. The new one is built and loaded privately, with
+	// m_Lock not held: loading reads the SD card, which yields to other tasks on this
+	// core (NO_BUSY_WAIT), and the RTP/UDP MIDI tasks call into this class directly, so
+	// holding the lock across the load deadlocks and using the live synth during it
+	// races. Meanwhile Render() outputs silence and incoming MIDI is dropped.
 	m_Lock.Acquire();
+	fluid_synth_t* const pOldSynth = m_pSynth;
+	m_pSynth = nullptr;
+	// Notes stop with the old synth; channel state and drum channels carry over
+	m_MIDIMonitor.AllNotesOff();
+	m_Lock.Release();
 
-	if (m_pSynth)
-		delete_fluid_synth(m_pSynth);
+	if (pOldSynth)
+		delete_fluid_synth(pOldSynth);
 
-	m_pSynth = new_fluid_synth(m_pSettings);
-
-	if (!m_pSynth)
+	fluid_synth_t* const pSynth = new_fluid_synth(m_pSettings);
+	if (!pSynth)
 	{
-		m_Lock.Release();
 		LOGERR("Failed to create synth");
 		return false;
 	}
 
-	fluid_synth_set_polyphony(m_pSynth, pConfig->FluidSynthPolyphony);
+	fluid_synth_set_polyphony(pSynth, pConfig->FluidSynthPolyphony);
 
 	m_nInitialGain = pFXProfile->nGain.ValueOr(pConfig->FluidSynthDefaultGain);
-	fluid_synth_set_gain(m_pSynth, m_nVolume / 100.0f * m_nInitialGain);
+	fluid_synth_set_gain(pSynth, m_nVolume / 100.0f * m_nInitialGain);
 
 	// Use values from effects profile if set, otherwise use defaults
-	fluid_synth_reverb_on(m_pSynth, -1, pFXProfile->bReverbActive.ValueOr(pConfig->FluidSynthDefaultReverbActive));
-	fluid_synth_set_reverb_group_damp(m_pSynth, -1, pFXProfile->nReverbDamping.ValueOr(pConfig->FluidSynthDefaultReverbDamping));
-	fluid_synth_set_reverb_group_level(m_pSynth, -1, pFXProfile->nReverbLevel.ValueOr(pConfig->FluidSynthDefaultReverbLevel));
-	fluid_synth_set_reverb_group_roomsize(m_pSynth, -1, pFXProfile->nReverbRoomSize.ValueOr(pConfig->FluidSynthDefaultReverbRoomSize));
-	fluid_synth_set_reverb_group_width(m_pSynth, -1, pFXProfile->nReverbWidth.ValueOr(pConfig->FluidSynthDefaultReverbWidth));
+	fluid_synth_reverb_on(pSynth, -1, pFXProfile->bReverbActive.ValueOr(pConfig->FluidSynthDefaultReverbActive));
+	fluid_synth_set_reverb_group_damp(pSynth, -1, pFXProfile->nReverbDamping.ValueOr(pConfig->FluidSynthDefaultReverbDamping));
+	fluid_synth_set_reverb_group_level(pSynth, -1, pFXProfile->nReverbLevel.ValueOr(pConfig->FluidSynthDefaultReverbLevel));
+	fluid_synth_set_reverb_group_roomsize(pSynth, -1, pFXProfile->nReverbRoomSize.ValueOr(pConfig->FluidSynthDefaultReverbRoomSize));
+	fluid_synth_set_reverb_group_width(pSynth, -1, pFXProfile->nReverbWidth.ValueOr(pConfig->FluidSynthDefaultReverbWidth));
 
-	fluid_synth_chorus_on(m_pSynth, -1, pFXProfile->bChorusActive.ValueOr(pConfig->FluidSynthDefaultChorusActive));
-	fluid_synth_set_chorus_group_depth(m_pSynth, -1, pFXProfile->nChorusDepth.ValueOr(pConfig->FluidSynthDefaultChorusDepth));
-	fluid_synth_set_chorus_group_level(m_pSynth, -1, pFXProfile->nChorusLevel.ValueOr(pConfig->FluidSynthDefaultChorusLevel));
-	fluid_synth_set_chorus_group_nr(m_pSynth, -1, pFXProfile->nChorusVoices.ValueOr(pConfig->FluidSynthDefaultChorusVoices));
-	fluid_synth_set_chorus_group_speed(m_pSynth, -1, pFXProfile->nChorusSpeed.ValueOr(pConfig->FluidSynthDefaultChorusSpeed));
+	fluid_synth_chorus_on(pSynth, -1, pFXProfile->bChorusActive.ValueOr(pConfig->FluidSynthDefaultChorusActive));
+	fluid_synth_set_chorus_group_depth(pSynth, -1, pFXProfile->nChorusDepth.ValueOr(pConfig->FluidSynthDefaultChorusDepth));
+	fluid_synth_set_chorus_group_level(pSynth, -1, pFXProfile->nChorusLevel.ValueOr(pConfig->FluidSynthDefaultChorusLevel));
+	fluid_synth_set_chorus_group_nr(pSynth, -1, pFXProfile->nChorusVoices.ValueOr(pConfig->FluidSynthDefaultChorusVoices));
+	fluid_synth_set_chorus_group_speed(pSynth, -1, pFXProfile->nChorusSpeed.ValueOr(pConfig->FluidSynthDefaultChorusSpeed));
 
 #ifndef NDEBUG
-	DumpFXSettings();
+	DumpFXSettings(pSynth);
 #endif
 
-	ResetMIDIMonitor();
+	const unsigned int nLoadStart = CTimer::GetClockTicks();
+	const bool bLoaded = fluid_synth_sfload(pSynth, pSoundFontPath, true) != FLUID_FAILED;
 
+	// Replay the song's channel state into the new synth and install it (even without
+	// a SoundFont, as before), in one step so no MIDI arrives in between
+	m_Lock.Acquire();
+	if (bLoaded)
+		ReplayChannelState(pSynth);
+	m_pSynth = pSynth;
 	m_Lock.Release();
 
-	const unsigned int nLoadStart = CTimer::GetClockTicks();
-
-	if (fluid_synth_sfload(m_pSynth, pSoundFontPath, true) == FLUID_FAILED)
+	if (!bLoaded)
 	{
 		LOGERR("Failed to load SoundFont");
 		return false;
@@ -441,25 +476,187 @@ void CSoundFontSynth::ResetMIDIMonitor()
 	m_MIDIMonitor.AllNotesOff();
 	m_MIDIMonitor.ResetControllers(false);
 	m_nPercussionMask = 1 << 9;
+
+	// Called on GM/GS/XG resets: the song starts from defaults again
+	ResetChannelState();
+}
+
+void CSoundFontSynth::ResetChannelState()
+{
+	for (TChannelState& State : m_ChannelState)
+	{
+		State = TChannelState{};
+		State.nRPNMSB = State.nRPNLSB = NullRPN;
+	}
+}
+
+void CSoundFontSynth::RecordChannelState(u8 nStatus, u8 nChannel, u8 nData1, u8 nData2)
+{
+	TChannelState& State = m_ChannelState[nChannel];
+
+	switch (nStatus & 0xF0)
+	{
+		case 0xB0:
+			switch (nData1)
+			{
+				case 0:
+					State.nBankMSB = nData2;
+					State.bBankMSBSet = true;
+					return;
+
+				case 32:
+					State.nBankLSB = nData2;
+					State.bBankLSBSet = true;
+					return;
+
+				// RPN selection; NRPN selection deselects any RPN
+				case 101:
+					State.nRPNMSB = nData2;
+					return;
+
+				case 100:
+					State.nRPNLSB = nData2;
+					return;
+
+				case 99:
+				case 98:
+					State.nRPNMSB = State.nRPNLSB = NullRPN;
+					return;
+
+				// Data entry for RPN 0 (pitch bend range), 1 (fine tune), 2 (coarse tune)
+				case 6:
+				case 38:
+					if (State.nRPNMSB == 0 && State.nRPNLSB < TrackedRPNCount)
+					{
+						const u8 nRPN = State.nRPNLSB;
+						if (nData1 == 6)
+						{
+							State.RPNCoarse[nRPN] = nData2;
+							State.nRPNCoarseMask |= 1 << nRPN;
+						}
+						else
+						{
+							State.RPNFine[nRPN] = nData2;
+							State.nRPNFineMask |= 1 << nRPN;
+						}
+					}
+					return;
+
+				// Reset All Controllers: modulation, expression and pitch bend go back to
+				// their defaults (volume, pan, effect sends, bank and program stay; GM RP-015)
+				case 121:
+					State.nControllerMask &= ~((1 << 0) | (1 << 3));
+					State.bPitchBendSet = false;
+					return;
+
+				default:
+					for (size_t i = 0; i < TrackedControllerCount; ++i)
+					{
+						if (TrackedControllers[i] == nData1)
+						{
+							State.Controllers[i] = nData2;
+							State.nControllerMask |= 1 << i;
+							break;
+						}
+					}
+					return;
+			}
+
+		case 0xC0:
+			State.nProgram = nData1;
+			State.bProgramSet = true;
+			State.nProgramBankMSB = State.nBankMSB;
+			State.bProgramBankMSBSet = State.bBankMSBSet;
+			State.nProgramBankLSB = State.nBankLSB;
+			State.bProgramBankLSBSet = State.bBankLSBSet;
+			return;
+
+		case 0xE0:
+			State.nPitchBend = (nData2 << 7) | nData1;
+			State.bPitchBendSet = true;
+			return;
+
+		default:
+			return;
+	}
+}
+
+void CSoundFontSynth::ReplayChannelState(fluid_synth_t* pSynth) const
+{
+	for (u8 nChannel = 0; nChannel < 16; ++nChannel)
+	{
+		const TChannelState& State = m_ChannelState[nChannel];
+
+		// Drum channels set by GS "use for rhythm part" (channel 10 is a drum channel by default)
+		const bool bDrum = m_nPercussionMask & (1 << nChannel);
+		if (bDrum != (nChannel == 9))
+			fluid_synth_set_channel_type(pSynth, nChannel, bDrum ? CHANNEL_TYPE_DRUM : CHANNEL_TYPE_MELODIC);
+
+		// The program with the bank it was chosen from, then any bank select that is
+		// still waiting for its program change
+		if (State.bProgramSet)
+		{
+			if (State.bProgramBankMSBSet)
+				fluid_synth_cc(pSynth, nChannel, 0, State.nProgramBankMSB);
+			if (State.bProgramBankLSBSet)
+				fluid_synth_cc(pSynth, nChannel, 32, State.nProgramBankLSB);
+			fluid_synth_program_change(pSynth, nChannel, State.nProgram);
+		}
+		if (State.bBankMSBSet && !(State.bProgramSet && State.bProgramBankMSBSet && State.nProgramBankMSB == State.nBankMSB))
+			fluid_synth_cc(pSynth, nChannel, 0, State.nBankMSB);
+		if (State.bBankLSBSet && !(State.bProgramSet && State.bProgramBankLSBSet && State.nProgramBankLSB == State.nBankLSB))
+			fluid_synth_cc(pSynth, nChannel, 32, State.nBankLSB);
+
+		for (size_t i = 0; i < TrackedControllerCount; ++i)
+		{
+			if (State.nControllerMask & (1 << i))
+				fluid_synth_cc(pSynth, nChannel, TrackedControllers[i], State.Controllers[i]);
+		}
+
+		for (u8 nRPN = 0; nRPN < TrackedRPNCount; ++nRPN)
+		{
+			const bool bCoarse = State.nRPNCoarseMask & (1 << nRPN);
+			const bool bFine   = State.nRPNFineMask & (1 << nRPN);
+			if (!bCoarse && !bFine)
+				continue;
+
+			fluid_synth_cc(pSynth, nChannel, 101, 0);
+			fluid_synth_cc(pSynth, nChannel, 100, nRPN);
+			if (bCoarse)
+				fluid_synth_cc(pSynth, nChannel, 6, State.RPNCoarse[nRPN]);
+			if (bFine)
+				fluid_synth_cc(pSynth, nChannel, 38, State.RPNFine[nRPN]);
+		}
+
+		// Leave the song's own RPN selection as it was
+		if (State.nRPNCoarseMask || State.nRPNFineMask)
+		{
+			fluid_synth_cc(pSynth, nChannel, 101, State.nRPNMSB);
+			fluid_synth_cc(pSynth, nChannel, 100, State.nRPNLSB);
+		}
+
+		if (State.bPitchBendSet)
+			fluid_synth_pitch_bend(pSynth, nChannel, State.nPitchBend);
+	}
 }
 
 #ifndef NDEBUG
-void CSoundFontSynth::DumpFXSettings() const
+void CSoundFontSynth::DumpFXSettings(fluid_synth_t* pSynth) const
 {
 	double nGain, nReverbDamping, nReverbLevel, nReverbRoomSize, nReverbWidth, nChorusDepth, nChorusLevel, nChorusSpeed;
 	int nChorusVoices;
 
-	nGain = fluid_synth_get_gain(m_pSynth);
+	nGain = fluid_synth_get_gain(pSynth);
 
-	assert(fluid_synth_get_reverb_group_damp(m_pSynth, -1, &nReverbDamping) == FLUID_OK);
-	assert(fluid_synth_get_reverb_group_level(m_pSynth, -1, &nReverbLevel) == FLUID_OK);
-	assert(fluid_synth_get_reverb_group_roomsize(m_pSynth, -1, &nReverbRoomSize) == FLUID_OK);
-	assert(fluid_synth_get_reverb_group_width(m_pSynth, -1, &nReverbWidth) == FLUID_OK);
+	assert(fluid_synth_get_reverb_group_damp(pSynth, -1, &nReverbDamping) == FLUID_OK);
+	assert(fluid_synth_get_reverb_group_level(pSynth, -1, &nReverbLevel) == FLUID_OK);
+	assert(fluid_synth_get_reverb_group_roomsize(pSynth, -1, &nReverbRoomSize) == FLUID_OK);
+	assert(fluid_synth_get_reverb_group_width(pSynth, -1, &nReverbWidth) == FLUID_OK);
 
-	assert(fluid_synth_get_chorus_group_depth(m_pSynth, -1, &nChorusDepth) == FLUID_OK);
-	assert(fluid_synth_get_chorus_group_level(m_pSynth, -1, &nChorusLevel) == FLUID_OK);
-	assert(fluid_synth_get_chorus_group_nr(m_pSynth, -1, &nChorusVoices) == FLUID_OK);
-	assert(fluid_synth_get_chorus_group_speed(m_pSynth, -1, &nChorusSpeed) == FLUID_OK);
+	assert(fluid_synth_get_chorus_group_depth(pSynth, -1, &nChorusDepth) == FLUID_OK);
+	assert(fluid_synth_get_chorus_group_level(pSynth, -1, &nChorusLevel) == FLUID_OK);
+	assert(fluid_synth_get_chorus_group_nr(pSynth, -1, &nChorusVoices) == FLUID_OK);
+	assert(fluid_synth_get_chorus_group_speed(pSynth, -1, &nChorusSpeed) == FLUID_OK);
 
 	LOGNOTE("Gain: %.2f", nGain);
 

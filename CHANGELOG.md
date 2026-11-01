@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Experimental Raspberry Pi 5 support (`kernel_2712.img`, built with `BOARD=pi5-64`). Audio goes to an I²S DAC or HDMI; `output_device = pwm` falls back to I²S because the Pi 5 has no headphone jack. Serial MIDI uses GPIO 14/15 as on other boards. Pi 500 and CM5 are untested.
 
+### Changed
+
+- SoundFont mode: switching SoundFonts while a song plays keeps each channel's instrument, bank, volume, pan, expression, reverb and chorus sends, pitch bend and bend range, so the song carries on with the same instruments in the new SoundFont. Before, every channel fell back to its default sound until the song sent new program changes.
+
+### Fixed
+
+- SoundFont mode: switching SoundFonts could crash or hang the synth, because the audio core and incoming RTP/UDP MIDI used the synth while the new SoundFont was loading into it. Now the old synth is set aside, the new one loads on its own and takes over when ready; MIDI arriving during the load is ignored. Seen on a Raspberry Pi 5; possible on every board since 0.16.1.
+
 ## [0.17.0] - 2026-10-27
 
 ### Added

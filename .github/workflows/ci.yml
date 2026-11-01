@@ -113,6 +113,53 @@ jobs:
         name: kernels-hdmi-${{ matrix.board }}
         path: kernel*.img
 
+  # pim-32's own sources built natively on Linux against a fake Circle, with
+  # FluidSynth and Munt built like the kernel's; see tests/host/README.md
+  host-tests:
+    runs-on: ubuntu-latest
+    name: host-tests-${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: tsan
+            sanitize: thread
+          - name: asan-ubsan
+            sanitize: address;undefined
+    steps:
+    - uses: actions/checkout@v7
+
+    # Only the synth libraries and inih; Circle isn't needed
+    - name: Fetch submodules
+      run: |
+        git submodule update --init --depth 1 external/munt external/fluidsynth external/inih
+        git -C external/fluidsynth submodule update --init --depth 1 gcem
+
+    - name: Install host build dependencies
+      run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+
+    # The runner kernel's 32-bit mmap randomisation breaks the sanitizer runtimes
+    - name: Lower ASLR entropy for the sanitizers
+      run: sudo sysctl -w vm.mmap_rnd_bits=28
+
+    - name: Setup ccache
+      uses: hendrikmuhs/ccache-action@v1.2.24
+      with:
+        key: host-tests-${{ matrix.name }}
+
+    - name: Configure
+      run: >
+        cmake -S tests/host -B build-host -G Ninja
+        -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        "-DPIM32_SANITIZE=${{ matrix.sanitize }}"
+
+    - name: Build
+      run: cmake --build build-host
+
+    - name: Test
+      run: ctest --test-dir build-host --output-on-failure -j 2
+
   package:
     needs: build
     runs-on: ubuntu-latest
