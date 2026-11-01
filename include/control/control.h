@@ -45,7 +45,7 @@ public:
 	u8 GetButtonState() const { return m_nButtonState; }
 
 #if RASPPI >= 5
-	// Circle has no CUserTimer on the Pi 5, so a spare core calls this
+	// Circle has no CUserTimer on the Pi 5, so the main loop calls this
 	// every PollRateMicros instead of a timer interrupt
 	void PollGPIOPins() { ReadGPIOPins(); }
 
