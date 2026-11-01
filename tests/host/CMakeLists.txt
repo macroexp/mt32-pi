@@ -273,3 +273,21 @@ pim32_test(test_config)
 pim32_test(test_config_ip_defaults EXPECT bug)	# O5
 pim32_test(test_midimonitor_note127 EXPECT bug)	# O1
 pim32_test(test_ui_format EXPECT bug)		# O3
+
+# Concurrency tests
+if(PIM32_EXPECT_SFLOAD_RACE STREQUAL "race")
+	set(SFLOAD_EXPECT race)
+else()
+	set(SFLOAD_EXPECT pass)
+endif()
+pim32_test(test_sf_switch_race EXPECT ${SFLOAD_EXPECT}
+	MATCH "fluid_synth_sfload|fluid_defsfloader_load|CSoundFontSynth::Reinitialize")
+pim32_test(test_sf_midi_while_rendering)
+pim32_test(test_system_soundfont)
+pim32_test(test_system_lcd_race EXPECT race MATCH "CMIDIMonitor|CUserInterface")	# C6, C7
+
+# Need MT-32 ROMs ($PIM32_MT32_ROMS); they skip themselves without them
+pim32_test(test_mt32_midi_while_rendering LABELS roms)
+pim32_test(test_mt32_isactive_race EXPECT race MATCH "CMT32Synth::IsActive" LABELS roms)	# C4
+pim32_test(test_mt32_lcd_romswitch_race EXPECT race MATCH "getDisplayState|readMemory|CMT32Synth::UpdateLCD|GetPartLevels" LABELS roms)	# C3
+pim32_test(test_switch_synth_race EXPECT race MATCH "CMT32Pi::SwitchSynth|CMT32Pi::AudioTask|CMT32Synth::IsActive" LABELS roms)	# C5 (C4)
