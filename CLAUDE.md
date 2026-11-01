@@ -4,6 +4,10 @@ pim-32 is a community continuation of [dwhinham/mt32-pi](https://github.com/dwhi
 
 **Start every session by reading the punchlist's "Current state / handoff" section:** https://claude.ai/artifact/QZmVguavkG1sY6nDBfaEXs. It says what's released, what's open, and what to do next. Update that section before you finish, and tick or add punchlist items as work completes or new tasks turn up.
 
+## Design rule: note timing comes first
+
+pim-32 is a sound module. No change may add delay or non-determinism to the delivery of note data: the path from MIDI input (serial, USB, RTP/UDP) through the main loop to the synth and the audio core's render must keep its timing. Power, heat, UI and convenience work must stay off that path or keep it constant-time; for example, the Pi 5 audio core may sleep between checks only with a wake-up far below a sample period (4.7 µs). Say in the PR how a change on that path affects timing. Never hold a lock across anything that can yield to the scheduler (with `NO_BUSY_WAIT`, SD card and USB I/O yield).
+
 ## Layout
 
 - `src/`, `include/`: mt32-pi itself. `src/synth/mt32synth.cpp` wraps Munt, `src/synth/soundfontsynth.cpp` wraps FluidSynth, `src/mt32pi.cpp` holds the audio, MIDI and UI tasks (one per core).
