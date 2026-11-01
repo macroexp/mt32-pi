@@ -24,6 +24,9 @@
 #define _power_h
 
 #include <circle/bcmpropertytags.h>
+#if RASPPI >= 5
+#include <circle/gpiopin.h>
+#endif
 #include <circle/types.h>
 
 class CPower
@@ -50,6 +53,9 @@ private:
 	};
 
 	void UpdateThrottledStatus();
+#if RASPPI >= 5
+	void UpdateFan();
+#endif
 
 	u16 m_nPowerSaveTimeout;
 	unsigned int m_nLastActivityTime;
@@ -57,6 +63,14 @@ private:
 
 	CBcmPropertyTags m_Tags;
 	u32 m_LastThrottledStatus;
+#if RASPPI >= 5
+	unsigned int m_nLastThrottledCheckTime;
+
+	// Active Cooler / Case Fan on the Pi 5 fan connector
+	CGPIOPin m_FanPin;
+	bool m_bFanPinReady;
+	bool m_bFanOn;
+#endif
 };
 
 #endif

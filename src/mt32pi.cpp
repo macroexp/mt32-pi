@@ -112,6 +112,9 @@ CMT32Pi::CMT32Pi(CI2CMaster* pI2CMaster, CSPIMaster* pSPIMaster, CInterruptSyste
 	  m_bUITaskDone(false),
 	  m_bLEDOn(false),
 	  m_nLEDOnTime(0),
+#if RASPPI >= 5
+	  m_nLastControlPollTime(0),
+#endif
 
 	  m_pSound(nullptr),
 	  m_pPisound(nullptr),
@@ -215,6 +218,16 @@ bool CMT32Pi::Initialize(bool bSerialMIDIAvailable)
 	// Queue size of just one chunk
 	unsigned int nQueueSize = m_pConfig->AudioChunkSize;
 	TSoundFormat Format = TSoundFormat::SoundFormatSigned24;
+
+#if RASPPI >= 5
+	// The Pi 5 has no headphone jack; PWM audio would need an RC filter adapter on
+	// GPIO 12/13. Use I2S instead, so the shipped config (pwm) works with a DAC HAT.
+	if (m_pConfig->AudioOutputDevice == CConfig::TAudioOutputDevice::PWM)
+	{
+		LOGWARN("PWM audio is not supported on the Raspberry Pi 5; using I2S");
+		m_pConfig->AudioOutputDevice = CConfig::TAudioOutputDevice::I2S;
+	}
+#endif
 
 	switch (m_pConfig->AudioOutputDevice)
 	{
@@ -410,6 +423,29 @@ bool CMT32Pi::InitSoundFontSynth()
 	return true;
 }
 
+#if RASPPI >= 5
+// Turn on the generic timer's event stream for the calling core: an event every
+// 2^(nBit+1) counter ticks (54 MHz on the Pi 5), so a core with nothing to do can
+// sleep in WFE (Circle's WaitForEvent()) instead of spinning at full speed
+static void EnableTimerEventStream(unsigned nBit)
+{
+	u64 nCNTKCTL;
+	asm volatile ("mrs %0, CNTKCTL_EL1" : "=r" (nCNTKCTL));
+	nCNTKCTL &= ~((0xFUL << 4) | (1UL << 3));	// EVNTI, EVNTDIR
+	nCNTKCTL |= (u64(nBit) << 4) | (1UL << 2);	// trigger on counter bit nBit going 0->1, EVNTEN
+	asm volatile ("msr CNTKCTL_EL1, %0" :: "r" (nCNTKCTL));
+	asm volatile ("isb");
+}
+
+// UI core: wake every 2^15 ticks (0.6 ms); LCD updates are 16 ms apart
+constexpr unsigned UIEventStreamBit    = 14;
+
+// Audio core: wake every 2^8 ticks (4.7 us, a quarter of a sample period at
+// 48 kHz), so waiting adds no meaningful delay or jitter to when a chunk is
+// rendered, and so to which MIDI events it includes
+constexpr unsigned AudioEventStreamBit = 7;
+#endif
+
 void CMT32Pi::MainTask()
 {
 	CScheduler* const pScheduler = CScheduler::Get();
@@ -425,6 +461,20 @@ void CMT32Pi::MainTask()
 
 		// Process network packets
 		UpdateNetwork();
+
+#if RASPPI >= 5
+		// Circle has no CUserTimer on the Pi 5, so poll buttons/encoder from here at
+		// the rate the user timer interrupt uses on older boards
+		if (m_pControl)
+		{
+			const unsigned int nPollTicks = CTimer::GetClockTicks();
+			if (nPollTicks - m_nLastControlPollTime >= CControl::PollRateMicros)
+			{
+				m_pControl->PollGPIOPins();
+				m_nLastControlPollTime = nPollTicks;
+			}
+		}
+#endif
 
 		// Update controls
 		if (m_pControl)
@@ -514,8 +564,17 @@ void CMT32Pi::UITask()
 	// Display current MT-32 ROM version/SoundFont
 	m_pCurrentSynth->ReportStatus();
 
+#if RASPPI >= 5
+	EnableTimerEventStream(UIEventStreamBit);
+#endif
+
 	while (m_bRunning)
 	{
+#if RASPPI >= 5
+		// Updates are 16 ms apart; sleep until the next timer event (0.6 ms)
+		WaitForEvent();
+#endif
+
 		const unsigned int nTicks = CTimer::GetClockTicks();
 
 		// Update LCD
@@ -571,9 +630,23 @@ void CMT32Pi::AudioTask()
 	float FloatBuffer[nQueueSizeFrames * nChannels];
 	s8 IntBuffer[nQueueSizeFrames * nBytesPerFrame + (bI2S ? 0 : 1)];
 
+#if RASPPI >= 5
+	EnableTimerEventStream(AudioEventStreamBit);
+#endif
+
 	while (m_bRunning)
 	{
 		const size_t nFrames = nQueueSizeFrames - m_pSound->GetQueueFramesAvail();
+
+#if RASPPI >= 5
+		// Queue full: sleep until the next timer event (4.7 us) instead of spinning
+		if (nFrames == 0)
+		{
+			WaitForEvent();
+			continue;
+		}
+#endif
+
 		const size_t nWriteBytes = nFrames * nBytesPerFrame;
 
 		m_pCurrentSynth->Render(FloatBuffer, nFrames);
@@ -618,6 +691,7 @@ void CMT32Pi::Run(unsigned nCore)
 
 		case 2:
 			return AudioTask();
+
 
 		default:
 			break;

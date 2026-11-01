@@ -29,6 +29,14 @@
 
 LOGMODULE("power");
 
+#if RASPPI >= 5
+// Pi 5 fan connector: GPIO 45, active low (as Circle's CCPUThrottle drives it).
+// Switch on at FanOnTemperature, off again below FanOffTemperature.
+constexpr unsigned FanGPIOPin          = 45;
+constexpr unsigned FanOnTemperature    = 60;
+constexpr unsigned FanOffTemperature   = 50;
+#endif
+
 // Bits in the throttled status response
 constexpr u32 UnderVoltageOccurredBit = 1 << 16;
 constexpr u32 ThrottlingOccurredBit   = 1 << 18;
@@ -38,6 +46,11 @@ CPower::CPower()
 	  m_nLastActivityTime(0),
 	  m_State(TState::Normal),
 	  m_LastThrottledStatus(0)
+#if RASPPI >= 5
+	  , m_nLastThrottledCheckTime(0),
+	  m_bFanPinReady(false),
+	  m_bFanOn(false)
+#endif
 {
 }
 
@@ -54,8 +67,52 @@ void CPower::Update()
 	}
 
 	// Check for undervoltage and throttling
+#if RASPPI >= 5
+	// This is a firmware mailbox call; the main loop runs thousands of times a
+	// second, and on the Pi 5 that many calls disturb the Wi-Fi driver, which
+	// runs between them on this core. Once a second is plenty.
+	if (nTicks - m_nLastThrottledCheckTime < HZ)
+		return;
+	m_nLastThrottledCheckTime = nTicks;
+
+	UpdateFan();
+#endif
 	UpdateThrottledStatus();
 }
+
+#if RASPPI >= 5
+void CPower::UpdateFan()
+{
+	// SoC temperature in degrees Celsius from the firmware; 0 on failure
+	const unsigned nTemperature = CCPUThrottle::Get()->GetTemperature();
+	if (nTemperature == 0)
+		return;
+
+	// Set up the pin here rather than in the constructor: something during startup
+	// returns GPIO 45 to an undriven state, which runs the fan at full speed
+	if (!m_bFanPinReady)
+	{
+		m_FanPin.AssignPin(FanGPIOPin);
+		m_FanPin.SetMode(GPIOModeOutput, false);
+		m_bFanPinReady = true;
+	}
+
+	if (!m_bFanOn && nTemperature >= FanOnTemperature)
+	{
+		m_bFanOn = true;
+		LOGNOTE("Fan on (%uC)", nTemperature);
+	}
+	else if (m_bFanOn && nTemperature < FanOffTemperature)
+	{
+		m_bFanOn = false;
+		LOGNOTE("Fan off (%uC)", nTemperature);
+	}
+
+	// Rewrite the state every time (one write a second), in case anything else
+	// touched the pin; LOW runs the fan, HIGH stops it
+	m_FanPin.Write(m_bFanOn ? LOW : HIGH);
+}
+#endif
 
 void CPower::Awaken()
 {

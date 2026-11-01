@@ -200,6 +200,9 @@ private:
 	volatile bool m_bUITaskDone;
 	bool m_bLEDOn;
 	unsigned m_nLEDOnTime;
+#if RASPPI >= 5
+	unsigned int m_nLastControlPollTime;
+#endif
 
 	// Audio output
 	CSoundBaseDevice* m_pSound;
