@@ -263,3 +263,13 @@ function(pim32_test NAME)
 		SKIP_REGULAR_EXPRESSION "PIM32_TEST_SKIPPED"
 		TIMEOUT 300)
 endfunction()
+
+# Unit tests
+pim32_test(test_midiparser)
+pim32_test(test_midiparser_tunerequest EXPECT bug)	# O2
+pim32_test(test_ringbuffer)
+pim32_test(test_zoneallocator)
+pim32_test(test_config)
+pim32_test(test_config_ip_defaults EXPECT bug)	# O5
+pim32_test(test_midimonitor_note127 EXPECT bug)	# O1
+pim32_test(test_ui_format EXPECT bug)		# O3
