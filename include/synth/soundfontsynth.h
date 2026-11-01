@@ -57,7 +57,7 @@ private:
 	bool Reinitialize(const char* pSoundFontPath, const TFXProfile* pFXProfile);
 	void ResetMIDIMonitor();
 #ifndef NDEBUG
-	void DumpFXSettings() const;
+	void DumpFXSettings(fluid_synth_t* pSynth) const;
 #endif
 	bool ParseGMSysEx(const u8* pData, size_t nSize);
 	bool ParseRolandSysEx(const u8* pData, size_t nSize);
