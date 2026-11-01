@@ -423,6 +423,21 @@ bool CMT32Pi::InitSoundFontSynth()
 	return true;
 }
 
+#if RASPPI >= 5
+// Turn on the generic timer's event stream for the calling core: an event every
+// 2^15 counter ticks (0.6 ms at the Pi 5's 54 MHz), so a core with nothing to do
+// can sleep in WFE (Circle's WaitForEvent()) instead of spinning at full speed
+static void EnableTimerEventStream()
+{
+	u64 nCNTKCTL;
+	asm volatile ("mrs %0, CNTKCTL_EL1" : "=r" (nCNTKCTL));
+	nCNTKCTL &= ~((0xFUL << 4) | (1UL << 3));	// EVNTI, EVNTDIR
+	nCNTKCTL |= (14UL << 4) | (1UL << 2);		// trigger on bit 14 going 0->1, EVNTEN
+	asm volatile ("msr CNTKCTL_EL1, %0" :: "r" (nCNTKCTL));
+	asm volatile ("isb");
+}
+#endif
+
 void CMT32Pi::MainTask()
 {
 	CScheduler* const pScheduler = CScheduler::Get();
@@ -541,8 +556,17 @@ void CMT32Pi::UITask()
 	// Display current MT-32 ROM version/SoundFont
 	m_pCurrentSynth->ReportStatus();
 
+#if RASPPI >= 5
+	EnableTimerEventStream();
+#endif
+
 	while (m_bRunning)
 	{
+#if RASPPI >= 5
+		// Updates are 16 ms apart; sleep until the next timer event (0.6 ms)
+		WaitForEvent();
+#endif
+
 		const unsigned int nTicks = CTimer::GetClockTicks();
 
 		// Update LCD
@@ -598,9 +622,23 @@ void CMT32Pi::AudioTask()
 	float FloatBuffer[nQueueSizeFrames * nChannels];
 	s8 IntBuffer[nQueueSizeFrames * nBytesPerFrame + (bI2S ? 0 : 1)];
 
+#if RASPPI >= 5
+	EnableTimerEventStream();
+#endif
+
 	while (m_bRunning)
 	{
 		const size_t nFrames = nQueueSizeFrames - m_pSound->GetQueueFramesAvail();
+
+#if RASPPI >= 5
+		// Queue full: sleep until the next timer event (0.6 ms) instead of spinning
+		if (nFrames == 0)
+		{
+			WaitForEvent();
+			continue;
+		}
+#endif
+
 		const size_t nWriteBytes = nFrames * nBytesPerFrame;
 
 		m_pCurrentSynth->Render(FloatBuffer, nFrames);
