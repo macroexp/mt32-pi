@@ -90,8 +90,10 @@ Each test is registered in `CMakeLists.txt` with `pim32_test()` and one of:
 - `pass` (default): must pass in every build.
 - `race`: a known race from the punchlist's concurrency audit. In the TSan
   build, TSan must report a race whose stacks match the given pattern; in the
-  other builds the test must pass. If the race is no longer reported, the test
-  fails and asks you to flip it to `pass`.
+  other builds the test must pass. Whether TSan catches a race depends on how
+  the threads interleave, so a clean run is repeated, up to 5 runs in all. If
+  none of them reports the race, the test fails and asks you to flip it to
+  `pass`.
 - `bug`: a known bug from the audit's "Other bugs" list. The test checks the
   correct behaviour, so it must fail until the bug is fixed; if it passes, it
   asks you to flip it to `pass`.
