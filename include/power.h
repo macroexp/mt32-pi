@@ -68,6 +68,7 @@ private:
 
 	// Active Cooler / Case Fan on the Pi 5 fan connector
 	CGPIOPin m_FanPin;
+	bool m_bFanPinReady;
 	bool m_bFanOn;
 #endif
 };

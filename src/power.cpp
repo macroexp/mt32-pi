@@ -48,15 +48,10 @@ CPower::CPower()
 	  m_LastThrottledStatus(0)
 #if RASPPI >= 5
 	  , m_nLastThrottledCheckTime(0),
+	  m_bFanPinReady(false),
 	  m_bFanOn(false)
 #endif
 {
-#if RASPPI >= 5
-	// Start with the fan off; UpdateFan() switches it on when the SoC gets warm
-	m_FanPin.AssignPin(FanGPIOPin);
-	m_FanPin.SetMode(GPIOModeOutput, false);
-	m_FanPin.Write(HIGH);
-#endif
 }
 
 void CPower::Update()
@@ -93,18 +88,29 @@ void CPower::UpdateFan()
 	if (nTemperature == 0)
 		return;
 
+	// Set up the pin here rather than in the constructor: something during startup
+	// returns GPIO 45 to an undriven state, which runs the fan at full speed
+	if (!m_bFanPinReady)
+	{
+		m_FanPin.AssignPin(FanGPIOPin);
+		m_FanPin.SetMode(GPIOModeOutput, false);
+		m_bFanPinReady = true;
+	}
+
 	if (!m_bFanOn && nTemperature >= FanOnTemperature)
 	{
-		m_FanPin.Write(LOW);
 		m_bFanOn = true;
 		LOGNOTE("Fan on (%uC)", nTemperature);
 	}
 	else if (m_bFanOn && nTemperature < FanOffTemperature)
 	{
-		m_FanPin.Write(HIGH);
 		m_bFanOn = false;
 		LOGNOTE("Fan off (%uC)", nTemperature);
 	}
+
+	// Rewrite the state every time (one write a second), in case anything else
+	// touched the pin; LOW runs the fan, HIGH stops it
+	m_FanPin.Write(m_bFanOn ? LOW : HIGH);
 }
 #endif
 
