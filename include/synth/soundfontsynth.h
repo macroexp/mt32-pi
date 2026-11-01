@@ -54,16 +54,41 @@ public:
 	CSoundFontManager& GetSoundFontManager() { return m_SoundFontManager; }
 
 private:
-	// Concurrency audit C2: fluid_synth_sfload() runs on m_pSynth after m_Lock is
-	// released (PR #25). Remove NO_THREAD_SAFETY_ANALYSIS with the fix.
-	bool Reinitialize(const char* pSoundFontPath, const TFXProfile* pFXProfile) EXCLUDES(m_Lock) NO_THREAD_SAFETY_ANALYSIS;
+	// Builds and loads the new synth privately, then installs it under m_Lock (PR #25)
+	bool Reinitialize(const char* pSoundFontPath, const TFXProfile* pFXProfile) EXCLUDES(m_Lock);
 	void ResetMIDIMonitor();
 #ifndef NDEBUG
-	void DumpFXSettings() const REQUIRES(m_Lock);
+	void DumpFXSettings(fluid_synth_t* pSynth) const;
 #endif
 	bool ParseGMSysEx(const u8* pData, size_t nSize);
 	bool ParseRolandSysEx(const u8* pData, size_t nSize);
 	bool ParseYamahaSysEx(const u8* pData, size_t nSize);
+
+	// Per-channel MIDI state, recorded as messages arrive and replayed into a new
+	// synth when the SoundFont changes, so a song keeps its instruments across a
+	// switch. Only touched on the core that handles MIDI (core 0).
+	static constexpr u8 TrackedControllers[] = { 1, 7, 10, 11, 91, 93 };	// mod, volume, pan, expression, reverb, chorus
+	static constexpr size_t TrackedControllerCount = sizeof(TrackedControllers);
+	static constexpr u8 TrackedRPNCount = 3;				// pitch bend range, fine tune, coarse tune
+	static constexpr u8 NullRPN = 0x7F;
+
+	struct TChannelState
+	{
+		bool bBankMSBSet, bBankLSBSet, bProgramSet, bPitchBendSet;
+		u8 nBankMSB, nBankLSB, nProgram;		// bank selects as last received
+		bool bProgramBankMSBSet, bProgramBankLSBSet;	// bank in effect when the program was chosen
+		u8 nProgramBankMSB, nProgramBankLSB;
+		u16 nPitchBend;
+		u8 nControllerMask;
+		u8 Controllers[TrackedControllerCount];
+		u8 nRPNMSB, nRPNLSB;					// current RPN selection
+		u8 nRPNCoarseMask, nRPNFineMask;
+		u8 RPNCoarse[TrackedRPNCount], RPNFine[TrackedRPNCount];
+	};
+
+	void ResetChannelState();
+	void RecordChannelState(u8 nStatus, u8 nChannel, u8 nData1, u8 nData2) REQUIRES(m_Lock);
+	void ReplayChannelState(fluid_synth_t* pSynth) const REQUIRES(m_Lock);
 
 	fluid_settings_t* m_pSettings;
 	fluid_synth_t* m_pSynth GUARDED_BY(m_Lock) PT_GUARDED_BY(m_Lock);
@@ -73,6 +98,8 @@ private:
 
 	u16 m_nPercussionMask;
 	size_t m_nCurrentSoundFontIndex;
+
+	TChannelState m_ChannelState[16];
 
 	CSoundFontManager m_SoundFontManager;
 

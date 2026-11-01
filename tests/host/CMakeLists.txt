@@ -36,9 +36,9 @@ get_filename_component(PIM32_ROOT "${PIM32_ROOT}" ABSOLUTE)
 set(PIM32_SANITIZE "thread" CACHE STRING "Sanitizers: thread, address;undefined, or empty")
 
 # Expected outcome of the SoundFont-load race test (concurrency audit C2): "race"
-# while main still has it, "fixed" once PR #25 (or another fix) is on main. The
+# while main still had it, "fixed" since PR #25 fixed it on main. The
 # PR that fixes C2 changes this default. Other expectations are per test below.
-set(PIM32_EXPECT_SFLOAD_RACE "race" CACHE STRING "C2: race or fixed")
+set(PIM32_EXPECT_SFLOAD_RACE "fixed" CACHE STRING "C2: race or fixed")
 
 if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE RelWithDebInfo)
