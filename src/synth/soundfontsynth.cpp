@@ -138,6 +138,7 @@ CSoundFontSynth::CSoundFontSynth(unsigned nSampleRate)
 	  m_nPercussionMask(1 << 9),
 	  m_nCurrentSoundFontIndex(0)
 {
+	ResetChannelState();
 }
 
 CSoundFontSynth::~CSoundFontSynth()
@@ -215,6 +216,7 @@ void CSoundFontSynth::HandleMIDIShortMessage(u32 nMessage)
 	if (nStatus == 0xFF)
 	{
 		m_Lock.Acquire();
+		ResetChannelState();
 		if (m_pSynth)
 			fluid_synth_system_reset(m_pSynth);
 		m_Lock.Release();
@@ -222,6 +224,9 @@ void CSoundFontSynth::HandleMIDIShortMessage(u32 nMessage)
 	}
 
 	m_Lock.Acquire();
+
+	// Record channel state even while a SoundFont is loading, so it's replayed into the new synth
+	RecordChannelState(nStatus, nChannel, nData1, nData2);
 
 	// No synth while a SoundFont is loading; drop the message
 	if (!m_pSynth)
@@ -407,7 +412,8 @@ bool CSoundFontSynth::Reinitialize(const char* pSoundFontPath, const TFXProfile*
 	m_Lock.Acquire();
 	fluid_synth_t* const pOldSynth = m_pSynth;
 	m_pSynth = nullptr;
-	ResetMIDIMonitor();
+	// Notes stop with the old synth; channel state and drum channels carry over
+	m_MIDIMonitor.AllNotesOff();
 	m_Lock.Release();
 
 	if (pOldSynth)
@@ -445,8 +451,11 @@ bool CSoundFontSynth::Reinitialize(const char* pSoundFontPath, const TFXProfile*
 	const unsigned int nLoadStart = CTimer::GetClockTicks();
 	const bool bLoaded = fluid_synth_sfload(pSynth, pSoundFontPath, true) != FLUID_FAILED;
 
-	// Install the new synth (even without a SoundFont, as before)
+	// Replay the song's channel state into the new synth and install it (even without
+	// a SoundFont, as before), in one step so no MIDI arrives in between
 	m_Lock.Acquire();
+	if (bLoaded)
+		ReplayChannelState(pSynth);
 	m_pSynth = pSynth;
 	m_Lock.Release();
 
@@ -467,6 +476,168 @@ void CSoundFontSynth::ResetMIDIMonitor()
 	m_MIDIMonitor.AllNotesOff();
 	m_MIDIMonitor.ResetControllers(false);
 	m_nPercussionMask = 1 << 9;
+
+	// Called on GM/GS/XG resets: the song starts from defaults again
+	ResetChannelState();
+}
+
+void CSoundFontSynth::ResetChannelState()
+{
+	for (TChannelState& State : m_ChannelState)
+	{
+		State = TChannelState{};
+		State.nRPNMSB = State.nRPNLSB = NullRPN;
+	}
+}
+
+void CSoundFontSynth::RecordChannelState(u8 nStatus, u8 nChannel, u8 nData1, u8 nData2)
+{
+	TChannelState& State = m_ChannelState[nChannel];
+
+	switch (nStatus & 0xF0)
+	{
+		case 0xB0:
+			switch (nData1)
+			{
+				case 0:
+					State.nBankMSB = nData2;
+					State.bBankMSBSet = true;
+					return;
+
+				case 32:
+					State.nBankLSB = nData2;
+					State.bBankLSBSet = true;
+					return;
+
+				// RPN selection; NRPN selection deselects any RPN
+				case 101:
+					State.nRPNMSB = nData2;
+					return;
+
+				case 100:
+					State.nRPNLSB = nData2;
+					return;
+
+				case 99:
+				case 98:
+					State.nRPNMSB = State.nRPNLSB = NullRPN;
+					return;
+
+				// Data entry for RPN 0 (pitch bend range), 1 (fine tune), 2 (coarse tune)
+				case 6:
+				case 38:
+					if (State.nRPNMSB == 0 && State.nRPNLSB < TrackedRPNCount)
+					{
+						const u8 nRPN = State.nRPNLSB;
+						if (nData1 == 6)
+						{
+							State.RPNCoarse[nRPN] = nData2;
+							State.nRPNCoarseMask |= 1 << nRPN;
+						}
+						else
+						{
+							State.RPNFine[nRPN] = nData2;
+							State.nRPNFineMask |= 1 << nRPN;
+						}
+					}
+					return;
+
+				// Reset All Controllers: modulation, expression and pitch bend go back to
+				// their defaults (volume, pan, effect sends, bank and program stay; GM RP-015)
+				case 121:
+					State.nControllerMask &= ~((1 << 0) | (1 << 3));
+					State.bPitchBendSet = false;
+					return;
+
+				default:
+					for (size_t i = 0; i < TrackedControllerCount; ++i)
+					{
+						if (TrackedControllers[i] == nData1)
+						{
+							State.Controllers[i] = nData2;
+							State.nControllerMask |= 1 << i;
+							break;
+						}
+					}
+					return;
+			}
+
+		case 0xC0:
+			State.nProgram = nData1;
+			State.bProgramSet = true;
+			State.nProgramBankMSB = State.nBankMSB;
+			State.bProgramBankMSBSet = State.bBankMSBSet;
+			State.nProgramBankLSB = State.nBankLSB;
+			State.bProgramBankLSBSet = State.bBankLSBSet;
+			return;
+
+		case 0xE0:
+			State.nPitchBend = (nData2 << 7) | nData1;
+			State.bPitchBendSet = true;
+			return;
+
+		default:
+			return;
+	}
+}
+
+void CSoundFontSynth::ReplayChannelState(fluid_synth_t* pSynth) const
+{
+	for (u8 nChannel = 0; nChannel < 16; ++nChannel)
+	{
+		const TChannelState& State = m_ChannelState[nChannel];
+
+		// Drum channels set by GS "use for rhythm part" (channel 10 is a drum channel by default)
+		const bool bDrum = m_nPercussionMask & (1 << nChannel);
+		if (bDrum != (nChannel == 9))
+			fluid_synth_set_channel_type(pSynth, nChannel, bDrum ? CHANNEL_TYPE_DRUM : CHANNEL_TYPE_MELODIC);
+
+		// The program with the bank it was chosen from, then any bank select that is
+		// still waiting for its program change
+		if (State.bProgramSet)
+		{
+			if (State.bProgramBankMSBSet)
+				fluid_synth_cc(pSynth, nChannel, 0, State.nProgramBankMSB);
+			if (State.bProgramBankLSBSet)
+				fluid_synth_cc(pSynth, nChannel, 32, State.nProgramBankLSB);
+			fluid_synth_program_change(pSynth, nChannel, State.nProgram);
+		}
+		if (State.bBankMSBSet && !(State.bProgramSet && State.bProgramBankMSBSet && State.nProgramBankMSB == State.nBankMSB))
+			fluid_synth_cc(pSynth, nChannel, 0, State.nBankMSB);
+		if (State.bBankLSBSet && !(State.bProgramSet && State.bProgramBankLSBSet && State.nProgramBankLSB == State.nBankLSB))
+			fluid_synth_cc(pSynth, nChannel, 32, State.nBankLSB);
+
+		for (size_t i = 0; i < TrackedControllerCount; ++i)
+		{
+			if (State.nControllerMask & (1 << i))
+				fluid_synth_cc(pSynth, nChannel, TrackedControllers[i], State.Controllers[i]);
+		}
+
+		for (u8 nRPN = 0; nRPN < TrackedRPNCount; ++nRPN)
+		{
+			const bool bCoarse = State.nRPNCoarseMask & (1 << nRPN);
+			const bool bFine   = State.nRPNFineMask & (1 << nRPN);
+			if (!bCoarse && !bFine)
+				continue;
+
+			fluid_synth_cc(pSynth, nChannel, 101, 0);
+			fluid_synth_cc(pSynth, nChannel, 100, nRPN);
+			if (bCoarse)
+				fluid_synth_cc(pSynth, nChannel, 6, State.RPNCoarse[nRPN]);
+			if (bFine)
+				fluid_synth_cc(pSynth, nChannel, 38, State.RPNFine[nRPN]);
+		}
+
+		// Leave the song's own RPN selection as it was
+		if (State.nRPNCoarseMask || State.nRPNFineMask)
+		{
+			fluid_synth_cc(pSynth, nChannel, 101, State.nRPNMSB);
+			fluid_synth_cc(pSynth, nChannel, 100, State.nRPNLSB);
+		}
+
+		if (State.bPitchBendSet)
+			fluid_synth_pitch_bend(pSynth, nChannel, State.nPitchBend);
+	}
 }
 
 #ifndef NDEBUG
