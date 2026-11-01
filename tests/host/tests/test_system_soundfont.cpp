@@ -41,11 +41,20 @@ TEST(MIDIInAudioOut)
 	CHECK(System.WaitForAudio(20));
 	CHECK(System.TakeAudioPeak() == 0);
 
-	// A note on channel 1 is heard
+	// A note on channel 1 is heard. WaitForMIDIRead() returns once the bytes have
+	// been read; the fake sound device takes audio as fast as it is rendered, so
+	// keep listening (up to 1000 chunks) until the note reaches the synth
 	System.Send({0x90, 0x45, 0x7F});
 	CHECK(System.WaitForMIDIRead());
-	CHECK(System.WaitForAudio(20));
-	CHECK(System.TakeAudioPeak() > 100000);
+	s32 nPeak = 0;
+	for (unsigned i = 0; i < 50 && nPeak <= 100000; ++i)
+	{
+		CHECK(System.WaitForAudio(20));
+		const s32 nChunkPeak = System.TakeAudioPeak();
+		if (nChunkPeak > nPeak)
+			nPeak = nChunkPeak;
+	}
+	CHECK(nPeak > 100000);
 
 	// Running status, controllers, a GS reset and a custom SysEx (MT-32 reversed
 	// stereo; ignored without the MT-32 synth), then all notes off
