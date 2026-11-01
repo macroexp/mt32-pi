@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- SoundFont mode: switching SoundFonts while a song plays keeps each channel's instrument, bank, volume, pan, expression, reverb and chorus sends, pitch bend and bend range, so the song carries on with the same instruments in the new SoundFont. Before, every channel fell back to its default sound until the song sent new program changes.
+
 ### Fixed
 
 - SoundFont mode: switching SoundFonts could crash or hang the synth, because the audio core and incoming RTP/UDP MIDI used the synth while the new SoundFont was loading into it. Now the old synth is set aside, the new one loads on its own and takes over when ready; MIDI arriving during the load is ignored. Seen on a Raspberry Pi 5; possible on every board since 0.16.1.
