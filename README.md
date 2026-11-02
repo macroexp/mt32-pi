@@ -27,7 +27,8 @@ Current goals: update the Circle framework, FluidSynth, Munt and the build toolc
 <img title="mt32-pi running on the Raspberry Pi 3 A+ with the Arananet PI-MIDI HAT." width="280rem" align="right" src="images/mt32pi_pimidi.png">
 
 - Supports Raspberry Pi Zero 2 W, Raspberry Pi 3 Model A+, B, and B+, Raspberry Pi 4 Model B, and CM4 series.
-  * Raspberry Pi 5 support is experimental: use an I²S DAC or HDMI for audio (no PWM). Pi 500 and CM5 are untested; Pisound and MiSTer haven't been tested on the Pi 5.
+  * Raspberry Pi 5 support is experimental: use an I²S DAC for audio. There is no PWM output. USB MIDI input works.
+  * Pi 5 HDMI audio is distorted (known issue). It also needs a build with `HDMI_CONSOLE=1`: the standard Pi 5 kernel doesn't turn HDMI on, so the monitor shows "no signal". Pi 500 and CM5 are untested; Pisound and MiSTer haven't been tested on the Pi 5.
   * On the Pi 5, use the official 5 V / 5 A (27 W) supply or a USB-C PD supply; weaker supplies can crash it under Wi-Fi load. pim-32 drives the Active Cooler or case fan (on at 60 °C, off below 50 °C).
   * The Pi 5 has no FIQ, so serial (GPIO) MIDI uses a normal interrupt there. Wi-Fi activity can delay it enough to lose bytes ("UART overrun" in the log); for serial MIDI on a Pi 5, prefer Ethernet or turn Wi-Fi off.
   * Pi 2 works, but only with concessions on playback quality.
