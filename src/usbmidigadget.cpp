@@ -20,10 +20,12 @@
 // mt32-pi. If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include "usbmidigadget.h"
+
+#if RASPPI <= 4
+
 #include <circle/machineinfo.h>
 #include <circle/usb/usb.h>
-
-#include "usbmidigadget.h"
 
 // pid.codes test IDs (https://pid.codes); replace with an assigned product ID before release.
 // Windows caches drivers by vendor/product ID, so change the product ID if the descriptors change.
@@ -75,3 +77,5 @@ const void* CMT32PiUSBMIDIGadget::GetDescriptor(u16 wValue, u16 wIndex, size_t* 
 
 	return CUSBMIDIGadget::GetDescriptor(wValue, wIndex, pLength);
 }
+
+#endif

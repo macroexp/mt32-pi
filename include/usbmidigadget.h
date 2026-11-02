@@ -23,6 +23,10 @@
 #ifndef _usbmidigadget_h
 #define _usbmidigadget_h
 
+// Circle has no USB gadget driver for the Pi 5 (lib/usb/gadget builds empty there),
+// so the Pi 5 kernel is host mode only
+#if RASPPI <= 4
+
 #include <circle/interrupt.h>
 #include <circle/types.h>
 #include <circle/usb/gadget/usbmidigadget.h>
@@ -40,5 +44,7 @@ public:
 protected:
 	const void* GetDescriptor(u16 wValue, u16 wIndex, size_t* pLength) override;
 };
+
+#endif
 
 #endif

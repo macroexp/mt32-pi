@@ -189,16 +189,24 @@ bool CMT32Pi::Initialize(bool bSerialMIDIAvailable)
 	if (m_pConfig->SystemUSB)
 	{
 		bool bMIDIDeviceMode = m_pConfig->SystemUSBMode == CConfig::TUSBMode::MIDIDevice;
-		if (bMIDIDeviceMode && !CMT32PiUSBMIDIGadget::IsSupported())
+#if RASPPI >= 5
+		// Circle has no USB gadget driver for the Pi 5
+		const bool bMIDIDeviceSupported = false;
+#else
+		const bool bMIDIDeviceSupported = CMT32PiUSBMIDIGadget::IsSupported();
+#endif
+		if (bMIDIDeviceMode && !bMIDIDeviceSupported)
 		{
 			LOGWARN("USB MIDI device mode is not supported on this Raspberry Pi model; using host mode");
 			bMIDIDeviceMode = false;
 		}
 
 		// Host and MIDI device (gadget) mode can't share the USB controller, so only create the one we need
+#if RASPPI <= 4
 		if (bMIDIDeviceMode)
 			m_pUSB = new CMT32PiUSBMIDIGadget(m_pInterrupt);
 		else
+#endif
 			m_pUSB = new CUSBHCIDevice(m_pInterrupt, m_pTimer, true);
 
 		if (m_pUSB->Initialize())
