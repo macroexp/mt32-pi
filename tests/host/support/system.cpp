@@ -42,7 +42,7 @@ namespace pim32
 	{
 		CConfig::Get()->AudioOutputDevice = CConfig::TAudioOutputDevice::I2S;
 
-		m_pPi = new CMT32Pi(&m_I2C, &m_SPI, CInterruptSystem::Get(), &m_GPIO, &m_Serial, &m_USB);
+		m_pPi = new CMT32Pi(&m_I2C, &m_SPI, CInterruptSystem::Get(), &m_GPIO, &m_Serial);
 		if (!m_pPi->Initialize(true))
 			return false;
 

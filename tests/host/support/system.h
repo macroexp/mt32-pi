@@ -40,7 +40,6 @@
 #include <circle/i2cmaster.h>
 #include <circle/serial.h>
 #include <circle/spimaster.h>
-#include <circle/usb/usbhcidevice.h>
 
 #include <initializer_list>
 #include <thread>
@@ -73,7 +72,6 @@ namespace pim32
 		CSPIMaster m_SPI;
 		CGPIOManager m_GPIO;
 		CSerialDevice m_Serial;
-		CUSBHCIDevice m_USB;
 		CMT32Pi* m_pPi;
 		std::thread m_Core0;
 	};

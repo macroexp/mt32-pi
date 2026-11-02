@@ -31,6 +31,7 @@ OBJS		:=	src/config.o \
 			src/soundfontmanager.o \
 			src/synth/mt32synth.o \
 			src/synth/soundfontsynth.o \
+			src/usbmidigadget.o \
 			src/zoneallocator.o
 
 EXTRACLEAN	+=	src/*.d src/*.o \
@@ -73,6 +74,7 @@ LIBS 		:=	$(CIRCLE_STDLIB_LIBS) \
 			$(CIRCLEHOME)/lib/net/libnet.a \
 			$(CIRCLEHOME)/lib/sched/libsched.a \
 			$(CIRCLEHOME)/lib/sound/libsound.a \
+			$(CIRCLEHOME)/lib/usb/gadget/libusbgadget.a \
 			$(CIRCLEHOME)/lib/usb/libusb.a
 
 ifeq ($(HDMI_CONSOLE), 1)

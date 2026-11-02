@@ -39,6 +39,7 @@
 #include <circle/spimaster.h>
 #include <circle/timer.h>
 #include <circle/types.h>
+#include <circle/usb/usbcontroller.h>
 #include <circle/usb/usbhcidevice.h>
 #include <circle/usb/usbmassdevice.h>
 #include <circle/usb/usbmidi.h>
@@ -63,13 +64,14 @@
 #include "synth/mt32synth.h"
 #include "synth/soundfontsynth.h"
 #include "synth/synth.h"
+#include "usbmidigadget.h"
 
 //#define MONITOR_TEMPERATURE
 
 class CMT32Pi : CMultiCoreSupport, CPower, CMIDIParser, CAppleMIDIHandler, CUDPMIDIHandler
 {
 public:
-	CMT32Pi(CI2CMaster* pI2CMaster, CSPIMaster* pSPIMaster, CInterruptSystem* pInterrupt, CGPIOManager* pGPIOManager, CSerialDevice* pSerialDevice, CUSBHCIDevice* pUSBHCI);
+	CMT32Pi(CI2CMaster* pI2CMaster, CSPIMaster* pSPIMaster, CInterruptSystem* pInterrupt, CGPIOManager* pGPIOManager, CSerialDevice* pSerialDevice);
 	virtual ~CMT32Pi() override;
 
 	bool Initialize(bool bSerialMIDIAvailable = true);
@@ -150,7 +152,7 @@ private:
 	CInterruptSystem* m_pInterrupt;
 	CGPIOManager* m_pGPIOManager;
 	CSerialDevice* m_pSerial;
-	CUSBHCIDevice* m_pUSBHCI;
+	CUSBController* m_pUSB;
 	FATFS m_USBFileSystem;
 	bool m_bUSBAvailable;
 
