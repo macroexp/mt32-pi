@@ -183,6 +183,7 @@ set(PIM32_SOURCES
 	src/soundfontmanager.cpp
 	src/synth/mt32synth.cpp
 	src/synth/soundfontsynth.cpp
+	src/usbmidigadget.cpp
 	src/zoneallocator.cpp
 	external/inih/ini.c)
 list(TRANSFORM PIM32_SOURCES PREPEND "${PIM32_ROOT}/")

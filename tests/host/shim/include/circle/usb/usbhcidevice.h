@@ -24,13 +24,18 @@
 #ifndef _circle_usb_usbhcidevice_h
 #define _circle_usb_usbhcidevice_h
 
+#include <circle/interrupt.h>
+#include <circle/timer.h>
 #include <circle/types.h>
+#include <circle/usb/usbcontroller.h>
 
-class CUSBHCIDevice
+class CUSBHCIDevice : public CUSBController
 {
 public:
-	boolean Initialize(boolean bScanDevices = TRUE) { return FALSE; }
-	boolean UpdatePlugAndPlay() { return FALSE; }
+	CUSBHCIDevice(CInterruptSystem* pInterruptSystem, CTimer* pTimer, boolean bPlugAndPlay = FALSE) {}
+
+	boolean Initialize(boolean bScanDevices = TRUE) override { return FALSE; }
+	boolean UpdatePlugAndPlay() override { return FALSE; }
 };
 
 #endif
