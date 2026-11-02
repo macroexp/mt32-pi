@@ -27,13 +27,13 @@
 #include <circle/machineinfo.h>
 #include <circle/usb/usb.h>
 
-// pid.codes test IDs (https://pid.codes); replace with an assigned product ID before release.
-// Windows caches drivers by vendor/product ID, so change the product ID if the descriptors change.
+// pid.codes VID with our registered PID (https://pid.codes/1209/3200/). Keep it fixed once released:
+// Windows caches drivers by vendor/product ID, so take a new PID if the descriptors change incompatibly.
 #ifndef MT32_PI_USB_VENDOR_ID
 #define MT32_PI_USB_VENDOR_ID 0x1209
 #endif
 #ifndef MT32_PI_USB_PRODUCT_ID
-#define MT32_PI_USB_PRODUCT_ID 0x0001
+#define MT32_PI_USB_PRODUCT_ID 0x3200
 #endif
 
 // String descriptor indices used by Circle's device descriptor
