@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-01
+
 ### Added
 
 - Experimental Raspberry Pi 5 support (`kernel_2712.img`, built with `BOARD=pi5-64`). Audio goes to an I²S DAC; `output_device = pwm` falls back to I²S because the Pi 5 has no headphone jack. HDMI audio is a known issue: it only works in an `HDMI_CONSOLE=1` build, and then sounds distorted. USB MIDI input works. Serial MIDI uses GPIO 14/15 as on other boards. The Active Cooler or case fan switches on at 60 °C and off below 50 °C. Use a 5 V / 5 A (27 W) or USB-C PD supply: weaker supplies can crash the Pi 5 under Wi-Fi load. Pi 500 and CM5 are untested.
@@ -631,7 +633,8 @@ First release of **pim-32**, a community-maintained continuation of [mt32-pi](ht
 
 - Initial version.
 
-[unreleased]: https://github.com/macroexp/mt32-pi/compare/v0.16.1..HEAD
+[unreleased]: https://github.com/macroexp/mt32-pi/compare/v0.18.0..HEAD
+[0.18.0]: https://github.com/macroexp/mt32-pi/compare/v0.17.0..v0.18.0
 [0.17.0]: https://github.com/macroexp/mt32-pi/compare/v0.16.1..v0.17.0
 [0.16.1]: https://github.com/macroexp/mt32-pi/compare/v0.16.0..v0.16.1
 [0.16.0]: https://github.com/macroexp/mt32-pi/compare/v0.15.0..v0.16.0
