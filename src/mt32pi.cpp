@@ -109,6 +109,7 @@ CMT32Pi::CMT32Pi(CI2CMaster* pI2CMaster, CSPIMaster* pSPIMaster, CInterruptSyste
 	  m_nActiveSenseTime(0),
 
 	  m_bRunning(true),
+	  m_bSecondaryCoresStarted(false),
 	  m_bUITaskDone(false),
 	  m_bLEDOn(false),
 	  m_nLEDOnTime(0),
@@ -325,7 +326,8 @@ bool CMT32Pi::Initialize(bool bSerialMIDIAvailable)
 	// Start audio
 	m_pSound->Start();
 
-	// Start other cores
+	// Start other cores; from now on the UI task owns the LCD
+	m_bSecondaryCoresStarted = true;
 	if (!CMultiCoreSupport::Initialize())
 		return false;
 
@@ -1370,10 +1372,14 @@ void CMT32Pi::PanicHandler()
 	if (!s_pThis || !s_pThis->m_pLCD)
 		return;
 
-	// Kill UI task
+	// Kill UI task. Before the secondary cores start (a panic during Initialize()) there is no UI task
+	// to wait for: waiting would hang here with the LCD still showing the last startup message.
 	s_pThis->m_bRunning = false;
-	while (!s_pThis->m_bUITaskDone)
-		;
+	if (s_pThis->m_bSecondaryCoresStarted)
+	{
+		while (!s_pThis->m_bUITaskDone)
+			;
+	}
 
 	const char* pGuru = "Guru Meditation:";
 	u8 nOffsetX = CUserInterface::CenterMessageOffset(*s_pThis->m_pLCD, pGuru);
