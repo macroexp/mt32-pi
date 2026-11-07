@@ -199,6 +199,7 @@ private:
 	unsigned m_nActiveSenseTime;
 
 	volatile bool m_bRunning;
+	volatile bool m_bSecondaryCoresStarted;
 	volatile bool m_bUITaskDone;
 	bool m_bLEDOn;
 	unsigned m_nLEDOnTime;
