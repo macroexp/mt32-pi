@@ -1,6 +1,7 @@
 Backport of Circle's USB gadget fix series from its develop branch (after
-Step 51.1.1), in order. The gadget sources in 51.1.1 are identical to develop
-just before the series, so this is upstream's diff unchanged:
+Step 51.1.1), with its follow-up fixes. The gadget sources in 51.1.1 are
+identical to develop just before the series, so this is upstream's diff
+(gadget files, 7f60f02d..ddab4c9c) unchanged:
 
 - 1bcfb78d usbmidigadget: Reuse MIDI interface after reconfiguration (#720)
   Without it, a second enumeration (host reboot, replug while self-powered)
@@ -12,6 +13,13 @@ just before the series, so this is upstream's diff unchanged:
 - 829a8c55 dwusbgadget: Synchronize receive buffers after DMA completion (#722)
   Discards cache lines refilled while DMA owned the receive buffer, so
   received MIDI data is not read stale.
+- d57d6c11 dwusbgadget: Retire EP0 transfers before reset recovery (#731)
+  EP0 OUT is no longer disabled on reset (that could leave a delayed event
+  for the next SETUP); an active EP0 IN transfer is cancelled before its
+  FIFO is flushed.
+- ef913e82 usbmidigadget: Retire transfers when reset follows suspend (#732)
+  A reset from the suspended state (host warm reboot) now deactivates the
+  endpoints, and the MIDI gadget cancels both directions on deactivation.
 
 Drop this patch when Circle is updated past these commits.
 
@@ -56,7 +64,7 @@ index 24fefbf5..0be2ff5b 100644
  
  	/// \return Is a transfer currently armed / in flight on this EP?
 diff --git a/lib/usb/gadget/dwusbgadget.cpp b/lib/usb/gadget/dwusbgadget.cpp
-index 2e61b2da..2921d53d 100644
+index 2e61b2da..6f7b7d9f 100644
 --- a/lib/usb/gadget/dwusbgadget.cpp
 +++ b/lib/usb/gadget/dwusbgadget.cpp
 @@ -445,7 +445,7 @@ void CDWUSBGadget::EnableDeviceInterrupts (void)
@@ -119,16 +127,137 @@ index 2e61b2da..2921d53d 100644
  	}
  
  	return TRUE;
+@@ -545,26 +552,16 @@ void CDWUSBGadget::HandleUSBReset (void)
+ 	// Trace: always log bus reset with current state (diagnosis for issue #591)
+ 	LOGTRACE ("USB reset (state %u)", (unsigned) m_State);
+ 
+-	switch (m_State)
++	if (   m_State == StateConfigured
++	    || m_State == StateSuspended)
+ 	{
+-	case StateConfigured:
++		// Suspend retains endpoints and may leave transfers armed. Deactivate
++		// them before reset discards transfer state and flushes the TX FIFOs.
+ 		SetConfiguration (0);
+-		// fall through
+-
+-	case StateEnumDone:
+-	case StateSuspended:
+-	case StateResetDone:
+-		// A reset arriving from StateSuspended (host warm reboot) or from
+-		// StateResetDone (host reset storm) must also cancel EP0's possibly
+-		// still-armed SETUP transfer. Otherwise the next SETUP completes
+-		// against the stale transfer and is dropped with a wrong length.
+-		assert (m_pEP[0]);
+-		m_pEP[0]->OnDeactivate ();
+-		break;
+-
+-	default:
+-		break;
+ 	}
++	// OnUSBReset() retires EP0 below. Do not use ordinary deactivation:
++	// EP0 OUT cannot be disabled, and an asynchronous disable must never
++	// be left pending when the next SETUP is armed.
+ 
+ 	// Set NAK for all OUT EPs
+ 	for (unsigned i = 0; i <= NumberOfOutEPs; i++)
+@@ -574,8 +571,6 @@ void CDWUSBGadget::HandleUSBReset (void)
+ 		OutEPCtrl.Write ();
+ 	}
+ 
+-	FlushTxFIFO (0x10);
+-
+ 	// Flush learning queue
+ 	CDWHCIRegister Reset (DWHCI_CORE_RESET, DWHCI_CORE_RESET_IN_TOKEN_QUEUE_FLUSH);
+ 	Reset.Write ();
+@@ -622,6 +617,13 @@ void CDWUSBGadget::HandleUSBReset (void)
+ 		}
+ 	}
+ 
++	// EP0 IN has now stopped as well. Do not flush a FIFO still owned by
++	// a transfer, or continue enumeration after a failed flush.
++	if (!FlushTxFIFO (0x10))
++	{
++		LOGPANIC ("USB reset FIFO flush timeout");
++	}
++
+ 	m_State = StateResetDone;
+ 
+ 	// Arm EP0 for SETUP reception already here (as the Linux dwc2 gadget
+@@ -692,6 +694,7 @@ void CDWUSBGadget::HandleInEPInterrupt (void)
+ #endif
+ 
+ 	assert (   m_State == StateSuspended
++		|| m_State == StateResetDone
+ 		|| m_State == StateEnumDone
+ 		|| m_State == StateConfigured);
+ 
+@@ -703,7 +706,9 @@ void CDWUSBGadget::HandleInEPInterrupt (void)
+ 	{
+ 		if (nInEPStat & 1)
+ 		{
+-			if (m_State != StateSuspended)
++			// EP0 is armed in HandleUSBReset, before ENUMDONE.
++			if (   m_State != StateSuspended
++			    && (m_State != StateResetDone || nEP == 0))
+ 			{
+ 				assert (nEP <= NumberOfEPs);
+ 				assert (m_pEP[nEP]);
+@@ -727,6 +732,7 @@ void CDWUSBGadget::HandleOutEPInterrupt (void)
+ #endif
+ 
+ 	assert (   m_State == StateSuspended
++		|| m_State == StateResetDone
+ 		|| m_State == StateEnumDone
+ 		|| m_State == StateConfigured);
+ 
+@@ -738,7 +744,9 @@ void CDWUSBGadget::HandleOutEPInterrupt (void)
+ 	{
+ 		if (nOutEPStat & 1)
+ 		{
+-			if (m_State != StateSuspended)
++			// EP0 is armed in HandleUSBReset, before ENUMDONE.
++			if (   m_State != StateSuspended
++			    && (m_State != StateResetDone || nEP == 0))
+ 			{
+ 				assert (nEP <= NumberOfEPs);
+ 				assert (m_pEP[nEP]);
 diff --git a/lib/usb/gadget/dwusbgadgetendpoint.cpp b/lib/usb/gadget/dwusbgadgetendpoint.cpp
-index add046ff..a0abc022 100644
+index add046ff..95304437 100644
 --- a/lib/usb/gadget/dwusbgadgetendpoint.cpp
 +++ b/lib/usb/gadget/dwusbgadgetendpoint.cpp
-@@ -273,6 +273,103 @@ void CDWUSBGadgetEndpoint::BeginTransfer (TTransferMode Mode, void *pBuffer, siz
+@@ -83,6 +83,25 @@ void CDWUSBGadgetEndpoint::SetMaxPacketSize (size_t nMaxPacketSize)
+ 
+ void CDWUSBGadgetEndpoint::OnUSBReset (void)
+ {
++	if (!m_nEP)
++	{
++		// USB reset ends the OUT transaction. EP0 OUT cannot be disabled:
++		// issuing EPDIS here can leave a delayed event for the next SETUP.
++		// An IN transfer, however, must finish its disable handshake before
++		// its FIFO or software ownership can be reused.
++		if (m_TransferMode == TransferDataIn)
++		{
++			CancelTransfer ();
++		}
++
++		// Both directions belong to the old control transaction. Retire all
++		// latched status before publishing new transfer metadata below.
++		CDWHCIRegister InEPInt (DWHCI_DEV_IN_EP_INT (0), ~0U);
++		InEPInt.Write ();
++		CDWHCIRegister OutEPInt (DWHCI_DEV_OUT_EP_INT (0), ~0U);
++		OutEPInt.Write ();
++	}
++
+ 	InitTransfer ();
+ 
+ 	if (!m_nEP)
+@@ -273,6 +292,103 @@ void CDWUSBGadgetEndpoint::BeginTransfer (TTransferMode Mode, void *pBuffer, siz
  
  void CDWUSBGadgetEndpoint::CancelTransfer (void)
  {
-+	// EP0 retains its existing reset/control-transfer handling below.
-+	if (m_nEP)
++	// EP0 IN must also stop before its FIFO or DMA buffer is reused.
++	if (m_nEP || m_TransferMode == TransferDataIn)
 +	{
 +		// Completion must not replace the transfer while it is being canceled.
 +		EnterCritical (IRQ_LEVEL);
@@ -227,7 +356,7 @@ index add046ff..a0abc022 100644
  	if (m_TransferMode == TransferDataIn)
  	{
  		CDWHCIRegister InEPCtrl (DWHCI_DEV_IN_EP_CTRL (m_nEP), 0);
-@@ -310,6 +407,12 @@ size_t CDWUSBGadgetEndpoint::FinishTransfer (void)
+@@ -310,6 +426,12 @@ size_t CDWUSBGadgetEndpoint::FinishTransfer (void)
  	assert (nXferSize <= m_nTransferLength);
  	nXferSize = m_nTransferLength - nXferSize;
  
@@ -240,6 +369,37 @@ index add046ff..a0abc022 100644
  #ifdef USB_GADGET_DEBUG
  	LOGDBG ("%u byte(s) transferred", nXferSize);
  
+@@ -369,7 +491,9 @@ void CDWUSBGadgetEndpoint::HandleOutInterrupt (void)
+ 	{
+ 		assert (m_nEP == 0);
+ 		CDWHCIRegister OutEPIntAck (DWHCI_DEV_OUT_EP_INT (m_nEP));
+-		OutEPIntAck.Set (DWHCI_DEV_OUT_EP_INT_SETUP_DONE);
++		// Retire coalesced completion before the callback arms a new phase.
++		OutEPIntAck.Set (DWHCI_DEV_OUT_EP_INT_SETUP_DONE
++				| (OutEPInt.Get () & DWHCI_DEV_OUT_EP_INT_XFER_COMPLETE));
+ 		OutEPIntAck.Write ();
+ 
+ 		size_t nLength = FinishTransfer ();
+diff --git a/lib/usb/gadget/dwusbgadgetendpoint0.cpp b/lib/usb/gadget/dwusbgadgetendpoint0.cpp
+index 2e0ecc73..1cb8c752 100644
+--- a/lib/usb/gadget/dwusbgadgetendpoint0.cpp
++++ b/lib/usb/gadget/dwusbgadgetendpoint0.cpp
+@@ -38,12 +38,12 @@ CDWUSBGadgetEndpoint0::~CDWUSBGadgetEndpoint0 (void)
+ 
+ void CDWUSBGadgetEndpoint0::OnActivate (void)
+ {
+-	m_State = StateIdle;
+-
+ 	// SETUP reception may already have been armed in HandleUSBReset() (see
+-	// there). Do not arm it twice.
++	// there), or it may already have advanced to a data/status phase. Leave
++	// the state as well as the transfer intact on repeated activation.
+ 	if (!IsTransferActive ())
+ 	{
++		m_State = StateIdle;
+ 		BeginTransfer (TransferSetupOut, m_OutBuffer, sizeof (TSetupData));
+ 	}
+ }
 diff --git a/lib/usb/gadget/usbmidigadget.cpp b/lib/usb/gadget/usbmidigadget.cpp
 index 479e1e99..ddc77929 100644
 --- a/lib/usb/gadget/usbmidigadget.cpp
@@ -257,3 +417,24 @@ index 479e1e99..ddc77929 100644
  	m_pInterface = new CUSBMIDIDevice;
  	assert (m_pInterface);
  
+diff --git a/lib/usb/gadget/usbmidigadgetendpoint.cpp b/lib/usb/gadget/usbmidigadgetendpoint.cpp
+index f3a17711..c13b81be 100644
+--- a/lib/usb/gadget/usbmidigadgetendpoint.cpp
++++ b/lib/usb/gadget/usbmidigadgetendpoint.cpp
+@@ -71,10 +71,12 @@ void CUSBMIDIGadgetEndpoint::OnActivate (void)
+ 
+ void CUSBMIDIGadgetEndpoint::OnDeactivate (void)
+ {
+-	if (GetDirection () == DirectionOut)
+-	{
+-		CancelTransfer ();
+-	}
++	// Do not retain queued packets or an active IN flag across reconfiguration.
++	OnSuspend ();
++
++	// Both directions may own an armed DMA transfer. Cancellation is also
++	// safe when idle, and must finish before reset reuses the endpoint.
++	CancelTransfer ();
+ }
+ 
+ void CUSBMIDIGadgetEndpoint::OnTransferComplete (boolean bIn, size_t nLength)
